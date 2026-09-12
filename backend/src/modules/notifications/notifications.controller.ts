@@ -1,6 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
-import { deleteNotification, getNotificationsByUserId, markAllNotificationsAsRead } from './notifications.repository';
+import { createNotification, deleteNotification, getNotificationsByUserId, markAllNotificationsAsRead } from './notifications.repository';
 import { AuthTokenPayload } from '../../utils/jwt';
+
+export async function createNotificationHandler(
+  req: Request & { authUser?: AuthTokenPayload },
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = req.authUser?.sub;
+    const { message, type = 'info', icon = 'info' } = req.body as {
+      message?: unknown;
+      type?: unknown;
+      icon?: unknown;
+    };
+
+    if (!userId) { res.status(401).json({ error: 'Usuario no autenticado.' }); return; }
+    if (typeof message !== 'string' || message.trim().length === 0) {
+      res.status(400).json({ error: 'El mensaje de la notificación es obligatorio.' });
+      return;
+    }
+    if (type !== 'success' && type !== 'info' && type !== 'warning') {
+      res.status(400).json({ error: 'El tipo de notificación no es válido.' });
+      return;
+    }
+    if (typeof icon !== 'string' || icon.trim().length === 0) {
+      res.status(400).json({ error: 'El icono de la notificación es obligatorio.' });
+      return;
+    }
+
+    await createNotification(userId, message.trim(), type, icon.trim());
+    res.status(201).json({ success: true });
+  } catch (error) { next(error); }
+}
 
 export async function getNotificationsHandler(
   req: Request & { authUser?: AuthTokenPayload },
