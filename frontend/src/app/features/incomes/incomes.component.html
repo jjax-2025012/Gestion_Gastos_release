@@ -1,92 +1,17 @@
 <div class="incomes" [class.sidebar-collapsed]="sidebarCollapsed">
 
-  <!-- ============ SIDEBAR ============ -->
-  <aside class="sidebar">
-    <div class="sidebar__logo">
-      <img src="assets/logo.png" alt="OSCORP Gestión de Gastos" class="sidebar__logo-img" />
-    </div>
-
-    <nav class="sidebar__menu">
-      <button
-        *ngFor="let item of menuItems"
-        class="sidebar__item"
-        [class.active]="activeRoute === item.route"
-        (click)="navigateTo(item)"
-        [title]="item.label"
-      >
-        <img class="sidebar__item-icon" [src]="'assets/icon-' + item.route + '.png'" [alt]="item.label" />
-        <span *ngIf="!sidebarCollapsed">{{ item.label }}</span>
-      </button>
-    </nav>
-
-    <button class="sidebar__collapse-btn" (click)="toggleSidebar()">
-      <svg class="icon" [class.flipped]="sidebarCollapsed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 6l-6 6 6 6" />
-      </svg>
-      <span *ngIf="!sidebarCollapsed">Cerrar Menú</span>
-    </button>
-  </aside>
+  <app-sidebar></app-sidebar>
 
   <!-- ============ CONTENIDO PRINCIPAL ============ -->
   <main class="main">
 
-    <!-- Header -->
-    <header class="header">
-      <div class="header__welcome">
-        <h1>Ingresos</h1>
-        <p>Gestiona todas tus fuentes de ingreso</p>
-      </div>
-
-      <div class="header__search">
-        <input
-          type="text"
-          placeholder="Buscar ingreso..."
-          [(ngModel)]="searchTerm"
-          (ngModelChange)="applyFilters()"
-        />
-        <img class="header__search-icon" src="assets/lupa.png" alt="" />
-      </div>
-
-      <div class="header__actions">
-        <div class="header__date">
-          <img class="header__date-icon" src="assets/calendario.png" alt="" />
-          <span>{{ currentDateLabel }}</span>
-        </div>
-
-        <button class="header__bell" (click)="onBellClick()">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path [attr.d]="getIconPath('bell')" />
-          </svg>
-          <span *ngIf="unreadNotificationCount > 0" class="header__bell-badge">
-            {{ unreadNotificationCount > 99 ? '+99' : unreadNotificationCount }}
-          </span>
-        </button>
-
-        <div class="header__user" (click)="toggleUserMenu()">
-          <div class="header__avatar">
-            <img
-              [src]="currentUser?.avatar_url || currentUser?.avatar || currentUser?.avatarUrl || currentUser?.picture || defaultAvatar"
-              (error)="onAvatarError($event)"
-              class="user-avatar-img"
-              [alt]="currentUser?.username || 'Usuario'"
-            />
-          </div>
-          <div class="header__user-text">
-            <span class="header__user-name">{{ currentUser?.username || currentUser?.firstName }}</span>
-            <span class="header__user-role">Usuario</span>
-          </div>
-
-          <div class="header__user-menu" *ngIf="userMenuOpen">
-            <button (click)="logout()">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path [attr.d]="getIconPath('log-out')" />
-              </svg>
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
+    <app-header
+      title="Ingresos"
+      subtitle="Gestiona todas tus fuentes de ingreso"
+      searchPlaceholder="Buscar ingreso..."
+      [searchTerm]="searchTerm"
+      (searchTermChange)="onSearchTermChange($event)"
+    ></app-header>
 
     <!-- Tarjetas de resumen -->
     <section class="summary-grid">
@@ -115,7 +40,14 @@
           </div>
         </div>
         <svg class="line-chart" [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="incomeAreaGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.22" />
+              <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+            </linearGradient>
+          </defs>
           <line *ngFor="let tick of yAxisTicks" [attr.x1]="padLeft" [attr.x2]="chartWidth - padRight" [attr.y1]="tick.y" [attr.y2]="tick.y" class="line-chart__grid" />
+          <path [attr.d]="ingresosArea" class="line-chart__area line-chart__area--income" />
           <path [attr.d]="ingresosPath" class="line-chart__path line-chart__path--income" />
           <circle *ngFor="let point of incomePointPositions" [attr.cx]="point.x" [attr.cy]="point.y" r="4" class="line-chart__point line-chart__point--income">
             <title>{{ point.label }}: {{ formatCurrency(point.value) }}</title>
@@ -179,11 +111,38 @@
         <button class="link-btn" type="button">Ver todos</button>
 
         <div class="table-toolbar">
-          <div class="select-wrap">
-            <select [(ngModel)]="filterCategoryId" (ngModelChange)="applyFilters()">
-              <option value="">Todas las categorías</option>
-              <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
-            </select>
+          <div class="filter-bar">
+            <div class="filter-item">
+              <label>Categoría</label>
+              <select [(ngModel)]="filterCategoryId" (ngModelChange)="applyFilters()">
+                <option value="">Todas</option>
+                <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+
+            <div class="filter-item">
+              <label>Desde</label>
+              <input type="date" [(ngModel)]="filterDateFrom" (ngModelChange)="applyFilters()" />
+            </div>
+
+            <div class="filter-item">
+              <label>Hasta</label>
+              <input type="date" [(ngModel)]="filterDateTo" (ngModelChange)="applyFilters()" />
+            </div>
+
+            <div class="filter-item">
+              <label>Monto Mín</label>
+              <input type="number" placeholder="Q0" [(ngModel)]="filterMinAmount" (ngModelChange)="applyFilters()" />
+            </div>
+
+            <div class="filter-item">
+              <label>Monto Máx</label>
+              <input type="number" placeholder="Sin límite" [(ngModel)]="filterMaxAmount" (ngModelChange)="applyFilters()" />
+            </div>
+
+            <button class="btn-filter-reset" type="button" (click)="resetFilters()" title="Limpiar filtros">
+              Limpiar
+            </button>
           </div>
 
           <button class="btn-primary table-new-income" (click)="openNewModal()">
@@ -308,6 +267,8 @@
             min="0.01"
             step="0.01"
             [(ngModel)]="form.amount"
+            (input)="onAmountInput($event)"
+            (blur)="onAmountBlur()"
             name="amount"
             placeholder="0.00"
           />
@@ -326,7 +287,7 @@
 
         <label class="field">
           <span>Fecha</span>
-          <input type="date" [(ngModel)]="form.income_date" name="income_date" />
+          <input type="date" [(ngModel)]="form.income_date" name="income_date" [max]="today" />
         </label>
 
         <label class="field field--check">

@@ -135,3 +135,25 @@
   text-decoration: none;
   font-weight: 600;
 }
+
+:host-context(body.theme-dark) .login-card {
+  background: #1e293b;
+}
+
+:host-context(body.theme-dark) .brand-title,
+:host-context(body.theme-dark) .form-group label,
+:host-context(body.theme-dark) .radio-label {
+  color: #f8fafc;
+}
+
+:host-context(body.theme-dark) .brand-subtitle,
+:host-context(body.theme-dark) .hint-text,
+:host-context(body.theme-dark) .footer-links {
+  color: #cbd5e1;
+}
+
+:host-context(body.theme-dark) .form-group input {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f8fafc;
+}

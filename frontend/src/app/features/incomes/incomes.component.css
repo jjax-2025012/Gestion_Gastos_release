@@ -620,6 +620,61 @@
   flex-wrap: wrap;
 }
 
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius-sm);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.filter-item label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--db-text-muted);
+  text-transform: uppercase;
+}
+
+.filter-item input,
+.filter-item select {
+  padding: 8px 10px;
+  border: 1px solid var(--db-border);
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 13px;
+  color: var(--db-text);
+  outline: none;
+}
+
+.btn-filter-reset {
+  padding: 8px 12px;
+  border: 1px solid var(--db-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--db-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  height: 36px;
+}
+
+.btn-filter-reset:hover {
+  background: #f1f5f9;
+  color: var(--db-text);
+}
+
 .select-wrap select {
   border: 1px solid var(--db-border);
   background: #fff;
@@ -1105,12 +1160,16 @@
   stroke-linejoin: round;
 }
 
+.line-chart__area {
+  stroke: none;
+}
+
 .line-chart__path--income { stroke: var(--db-green); }
 .line-chart__path--expense { stroke: var(--db-blue); }
 .line-chart__point { stroke: #fff; stroke-width: 2; }
 .line-chart__point--income { fill: var(--db-green); }
 .line-chart__point--expense { fill: var(--db-blue); }
-.line-chart__area--income { fill: rgba(16, 185, 129, .10); }
+.line-chart__area--income { fill: url(#incomeAreaGradient); }
 .line-chart__area--expense { fill: rgba(37, 99, 235, .07); }
 .line-chart__label { fill: var(--db-text-soft); font-size: 11px; }
 
@@ -1214,4 +1273,32 @@
 .user-avatar-img {
   border-radius: 50%;
   object-fit: cover;
+}
+
+/* La tabla de Ingresos usa las mismas proporciones que Historial de Gastos. */
+.table-panel .incomes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table-panel .incomes-table th {
+  padding: 12px 14px;
+  font-size: 12px;
+}
+
+.table-panel .incomes-table td {
+  padding: 14px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.table-panel .filter-bar {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .table-toolbar .filter-bar {
+    width: 100%;
+  }
 }

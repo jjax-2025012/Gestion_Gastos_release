@@ -1,0 +1,229 @@
+<div class="dash" [class.sidebar-collapsed]="sidebarCollapsed">
+  <app-sidebar></app-sidebar>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+    <app-header
+      title="Fondo de Ahorro y Metas"
+      subtitle="Gestiona tu capital acumulado y visualiza tu crecimiento financiero"
+    ></app-header>
+
+    <!-- Tarjeta Principal de Ahorro con Meta y Progress Bar -->
+    <section class="savings-hero-card panel">
+      <div class="savings-hero__top">
+        <div class="savings-hero__title-box">
+          <span class="savings-hero__badge">Capital Reservado</span>
+          <h2>Total Acumulado en Ahorro</h2>
+          <p class="savings-hero__subtitle">
+            Fondos resguardados transferidos de tus ingresos y balances positivos
+          </p>
+        </div>
+        <button class="btn-primary" (click)="openDepositModal()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path [attr.d]="getIconPath('plus')" />
+          </svg>
+          Destinar a Ahorro
+        </button>
+        <button class="btn-secondary" type="button" (click)="openWithdrawalModal()">
+          Retirar de Ahorro
+        </button>
+      </div>
+
+      <div class="savings-hero__metric-row">
+        <div class="savings-hero__amounts">
+          <span class="savings-hero__total">{{ formatCurrency(totalSavings) }}</span>
+          <span class="savings-hero__divider">/</span>
+          <span class="savings-hero__goal">Meta: {{ formatCurrency(savingsGoal) }}</span>
+          <span class="savings-hero__percent">({{ goalPercent }}%)</span>
+        </div>
+        <span class="savings-hero__available">
+          Saldo disponible para destinar: <strong>{{ formatCurrency(remainingBalance) }}</strong>
+        </span>
+      </div>
+
+      <!-- Barra de Progreso de la Meta de Ahorro -->
+      <div class="progress-track">
+        <div class="progress-bar-fill progress-success" [style.width.%]="goalPercent"></div>
+      </div>
+
+      <div class="savings-hero__footer">
+        <span>Faltan <strong>{{ formatCurrency(savingsGoal > totalSavings ? savingsGoal - totalSavings : 0) }}</strong> para alcanzar la meta establecida</span>
+        <span>Tasa de Ahorro respecto a ingresos: <strong>{{ savingsRate }}%</strong></span>
+      </div>
+    </section>
+
+    <!-- Tarjetas de Resumen KPI -->
+    <section class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper green">
+            <img class="summary-card__image-icon" src="assets/icon-ahorro-resumen.png" alt="" />
+          </div>
+          <span class="summary-card__title">Total Ahorrado</span>
+        </div>
+        <div class="summary-card__amount text-green">{{ formatCurrency(totalSavings) }}</div>
+        <div class="summary-card__footer">Fondo disponible acumulado</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper blue">
+            <img class="summary-card__image-icon" src="assets/icon-balance.png" alt="" />
+          </div>
+          <span class="summary-card__title">Saldo Disponible</span>
+        </div>
+        <div class="summary-card__amount">{{ formatCurrency(remainingBalance) }}</div>
+        <div class="summary-card__footer">Ingresos menos egresos activos</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper green-light">
+            <img class="summary-card__image-icon" src="assets/ingresos-resumen.png" alt="" />
+          </div>
+          <span class="summary-card__title">Tasa de Ahorro</span>
+        </div>
+        <div class="summary-card__amount">{{ savingsRate }}%</div>
+        <div class="summary-card__footer">Proporción de tus ingresos ahorrada</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper blue-light">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path [attr.d]="getIconPath('leaf')" />
+            </svg>
+          </div>
+          <span class="summary-card__title">Meta Financiera</span>
+        </div>
+        <div class="summary-card__amount">{{ formatCurrency(savingsGoal) }}</div>
+        <div class="summary-card__footer">{{ goalPercent }}% completado</div>
+      </div>
+    </section>
+
+    <!-- Historial de Aportes al Ahorro -->
+    <section class="panel history-panel">
+      <div class="panel__header">
+        <h2>Historial de Movimientos de Ahorro</h2>
+        <span class="panel__subtitle">{{ savingsService.savingsHistory().length }} movimiento(s) registrado(s)</span>
+      </div>
+
+      <div class="history-list" *ngIf="savingsService.savingsHistory().length > 0">
+        <div class="history-item" *ngFor="let item of savingsService.savingsHistory()">
+          <div class="history-item__left">
+            <span class="history-icon" [class.history-icon--withdrawal]="item.type === 'withdrawal'">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path [attr.d]="getIconPath('check')" />
+              </svg>
+            </span>
+            <div>
+              <span class="history-desc">{{ item.note }}</span>
+              <span class="history-date">{{ item.date }}</span>
+            </div>
+          </div>
+          <div class="history-amount" [class.text-green]="item.type !== 'withdrawal'" [class.text-red]="item.type === 'withdrawal'">
+            {{ item.type === 'withdrawal' ? '-' : '+' }}{{ formatCurrency(item.amount) }}
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="savingsService.savingsHistory().length === 0">
+        Aún no has registrado depósitos en tu fondo de ahorro. ¡Haz tu primera aportación hoy!
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal para Destinar a Ahorro -->
+  <div class="modal-backdrop" *ngIf="showDepositModal" (click)="showDepositModal = false">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h3>Destinar Fondos al Ahorro</h3>
+        <button class="btn-icon" (click)="showDepositModal = false">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal__desc">
+          Saldo disponible en cuenta: <strong>{{ formatCurrency(remainingBalance) }}</strong>.
+          Indica cuánto deseas transferir a tu reserva de ahorro:
+        </p>
+
+        <div class="form-group">
+          <label>Monto a transferir (en {{ currencyService.symbol }})</label>
+          <input
+            type="number"
+            class="input-control"
+            [(ngModel)]="depositAmount"
+            (input)="onDepositInput($event)"
+            (blur)="onDepositBlur()"
+            [max]="remainingBalance > 0 ? remainingBalance : 999999"
+            min="0.01"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Concepto o Nota</label>
+          <input
+            type="text"
+            class="input-control"
+            [(ngModel)]="depositNote"
+            placeholder="Ej. Ahorro para emergencias"
+          />
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button class="btn-secondary" (click)="showDepositModal = false">Cancelar</button>
+        <button class="btn-primary" (click)="submitDeposit()" [disabled]="!depositAmount || depositAmount <= 0">
+          Transferir a Ahorro
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Retirar Ahorro -->
+<div class="modal-backdrop" *ngIf="showWithdrawalModal" (click)="showWithdrawalModal = false">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal__header">
+      <h3>Retirar Fondos del Ahorro</h3>
+      <button class="btn-icon" type="button" (click)="showWithdrawalModal = false">✕</button>
+    </div>
+    <div class="modal__body">
+      <p class="modal__desc">Saldo acumulado disponible: <strong>{{ formatCurrency(totalSavings) }}</strong>.</p>
+      <div class="modal-error-banner" *ngIf="withdrawalError">
+        ⚠️ {{ withdrawalError }}
+      </div>
+      <div class="form-group">
+        <label>Monto a retirar (en {{ currencyService.symbol }})</label>
+        <input
+          type="number"
+          class="input-control"
+          [(ngModel)]="withdrawalAmount"
+          (input)="onWithdrawalInput($event)"
+          (blur)="onWithdrawalBlur()"
+          min="0.01"
+          step="0.01"
+          placeholder="0.00"
+        />
+      </div>
+      <div class="form-group">
+        <label>Concepto o Nota</label>
+        <input type="text" class="input-control" [(ngModel)]="withdrawalNote" placeholder="Ej. Pago de emergencia" />
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn-secondary" type="button" (click)="showWithdrawalModal = false">Cancelar</button>
+      <button class="btn-primary" type="button" (click)="submitWithdrawal()">
+        Retirar de Ahorro
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" *ngIf="toastMessage" [class.toast--error]="toastType === 'error'">
+  {{ toastMessage }}
+</div>
+

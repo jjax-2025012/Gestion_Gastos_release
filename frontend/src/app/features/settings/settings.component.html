@@ -1,0 +1,180 @@
+<div class="incomes settings-view" [class.sidebar-collapsed]="sidebarCollapsed">
+
+  <app-sidebar></app-sidebar>
+
+  <!-- ============ CONTENIDO PRINCIPAL ============ -->
+  <main class="main">
+
+    <!-- Header -->
+    <app-header title="Configuración y Ajustes"
+      subtitle="Administra tu cuenta, perfil y preferencias de la plataforma"></app-header>
+
+    <!-- Grid de Configuración -->
+    <div class="settings-grid">
+
+      <!-- Panel 1: Perfil de Usuario -->
+      <div class="panel settings-panel">
+        <div class="panel__header">
+          <div>
+            <h2>Perfil de Usuario</h2>
+            <p class="panel-subtitle">Información personal e identidad visual</p>
+          </div>
+        </div>
+
+        <form (ngSubmit)="saveProfile()" novalidate>
+          <div class="avatar-section">
+            <div class="current-avatar-box">
+              <img [src]="profileForm.avatar_url || defaultAvatar" (error)="onAvatarError($event)" class="avatar-large"
+                alt="Avatar de usuario" />
+            </div>
+            <div class="avatar-controls">
+              <span class="avatar-controls-title">Seleccionar avatar predeterminado:</span>
+              <div class="avatar-options">
+                <button type="button" class="avatar-pick-btn"
+                  [class.active]="profileForm.avatar_url && profileForm.avatar_url.includes('hombre')"
+                  (click)="selectPresetAvatar('hombre')">
+                  <img src="assets/user-avatar-hombre.png" alt="Hombre" />
+                  <span>Hombre</span>
+                </button>
+                <button type="button" class="avatar-pick-btn"
+                  [class.active]="googleAvatarUrl && profileForm.avatar_url === googleAvatarUrl"
+                  [disabled]="!googleAvatarUrl" (click)="restoreGoogleAvatar()">
+                  <img [src]="googleAvatarUrl || 'assets/logo.png'" alt="Foto de Google" />
+                  <span>Foto de Google</span>
+                </button>
+                <button type="button" class="avatar-pick-btn"
+                  [class.active]="profileForm.avatar_url && profileForm.avatar_url.includes('mujer')"
+                  (click)="selectPresetAvatar('mujer')">
+                  <img src="assets/user-avatar-mujer.png" alt="Mujer" />
+                  <span>Mujer</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-form-layout">
+            <label class="field">
+              <span>Nombre de Usuario / Mostrar</span>
+              <input type="text" [(ngModel)]="profileForm.username" name="username"
+                placeholder="Tu nombre completo o apodo" required />
+            </label>
+
+            <label class="field">
+              <span>Correo Electrónico (Registrado)</span>
+              <input type="email" [value]="profileForm.email" disabled class="input-disabled" />
+            </label>
+
+            <!-- Card de Sincronización Google OAuth -->
+            <div class="oauth-sync-card field--full">
+              <div class="oauth-info">
+                <svg class="oauth-google-icon" viewBox="0 0 24 24">
+                  <path fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+                  <path fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
+                  <path fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
+                  <path fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                </svg>
+                <div>
+                  <h4>Sincronización con Google</h4>
+                  <p *ngIf="isGoogleLinked">Tu cuenta está vinculada y sincronizada con Google OAuth 2.0.</p>
+                  <p *ngIf="!isGoogleLinked">Cuenta registrada mediante credenciales locales.</p>
+                </div>
+              </div>
+              <span class="badge-verified" *ngIf="isGoogleLinked">
+                <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path [attr.d]="getIconPath('check')" />
+                </svg>
+                Vinculado
+              </span>
+              <span class="badge-unlinked" *ngIf="!isGoogleLinked">Estándar</span>
+            </div>
+          </div>
+
+          <p class="form-error" *ngIf="profileError">{{ profileError }}</p>
+          <p class="form-success" *ngIf="profileSuccess">¡Perfil actualizado exitosamente!</p>
+
+          <div class="panel-action-footer">
+            <button type="submit" class="btn-primary" [disabled]="savingProfile">
+              {{ savingProfile ? 'Guardando…' : 'Guardar Cambios de Perfil' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Panel 2: Preferencias del Sistema -->
+      <div class="panel settings-panel">
+        <div class="panel__header">
+          <div>
+            <h2>Preferencias del Sistema</h2>
+            <p class="panel-subtitle">Personalización financiera y de interfaz</p>
+          </div>
+        </div>
+
+        <form (ngSubmit)="savePreferences()" novalidate>
+          <div class="settings-form-layout">
+            <label class="field">
+              <span>Moneda Principal</span>
+              <select [(ngModel)]="systemPrefs.currency" name="currency">
+                <option value="GTQ">Quetzales de Guatemala (Q)</option>
+                <option value="USD">Dólares Estadounidenses ($ USD)</option>
+                <option value="EUR">Euros (€ EUR)</option>
+                <option value="MXN">Pesos Mexicanos ($ MXN)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Presupuesto Mensual Límite</span>
+              <input type="number" min="1" step="0.01" [(ngModel)]="systemPrefs.monthlyBudget"
+                (input)="onBudgetInput($event)" (blur)="onBudgetBlur()" name="monthlyBudget" placeholder="10000.00"
+                required />
+            </label>
+
+            <div class="field field--full">
+              <span>Tema de la Aplicación</span>
+              <div class="theme-options">
+                <label class="theme-card" [class.selected]="systemPrefs.theme === 'dark'">
+                  <input type="radio" name="theme" value="dark" [(ngModel)]="systemPrefs.theme" />
+                  <div class="theme-preview dark-preview"></div>
+                  <span>Oscuro Corporativo</span>
+                </label>
+                <label class="theme-card" [class.selected]="systemPrefs.theme === 'light'">
+                  <input type="radio" name="theme" value="light" [(ngModel)]="systemPrefs.theme" />
+                  <div class="theme-preview light-preview"></div>
+                  <span>Claro Elegante</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="field field--full toggle-group">
+              <label class="toggle-item">
+                <input type="checkbox" [(ngModel)]="systemPrefs.budgetAlerts" name="budgetAlerts" />
+                <div class="toggle-info">
+                  <strong>Alertas de Presupuesto</strong>
+                  <span>Recibir alertas visuales cuando los gastos superen el 85% de la meta mensual.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <p class="form-success" *ngIf="prefsSuccess">¡Preferencias del sistema guardadas!</p>
+
+          <div class="panel-action-footer">
+            <button type="submit" class="btn-primary" [disabled]="savingPrefs">
+              {{ savingPrefs ? 'Guardando…' : 'Guardar Preferencias' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" *ngIf="toastMessage" [class.toast--error]="toastType === 'error'">
+  {{ toastMessage }}
+</div>

@@ -1,0 +1,256 @@
+<div class="incomes categories-view" [class.sidebar-collapsed]="sidebarCollapsed">
+
+  <app-sidebar></app-sidebar>
+
+  <!-- ============ CONTENIDO PRINCIPAL ============ -->
+  <main class="main">
+
+    <app-header
+      title="Gestión de Categorías"
+      subtitle="Organiza tus ingresos y gastos con etiquetas personalizadas"
+      searchPlaceholder="Buscar categoría..."
+      [searchTerm]="searchTerm"
+      (searchTermChange)="onSearchTermChange($event)"
+    ></app-header>
+
+    <!-- Toolbar de Categorías -->
+    <div class="categories-toolbar">
+      <div class="type-filter-group">
+        <button
+          class="type-filter-btn"
+          [class.active]="selectedTypeFilter === 'all'"
+          (click)="setTypeFilter('all')"
+        >
+          Todas ({{ categories.length }})
+        </button>
+        <button
+          class="type-filter-btn"
+          [class.active]="selectedTypeFilter === 'income'"
+          (click)="setTypeFilter('income')"
+        >
+          Ingresos
+        </button>
+        <button
+          class="type-filter-btn"
+          [class.active]="selectedTypeFilter === 'expense'"
+          (click)="setTypeFilter('expense')"
+        >
+          Gastos
+        </button>
+      </div>
+
+      <button class="btn-primary" (click)="openNewModal()">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path [attr.d]="getIconPath('plus')" />
+        </svg>
+        Nueva Categoría
+      </button>
+    </div>
+
+    <!-- Grid de Categorías -->
+    <div class="categories-grid">
+      <div class="cat-card" *ngFor="let cat of visibleCategories">
+        <div class="cat-card__header">
+          <div class="cat-card__icon" [style.background]="cat.color || '#3A86EF'">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path [attr.d]="getCategoryIconPath(cat.icon)" />
+            </svg>
+          </div>
+          <div class="cat-card__actions">
+            <button
+              class="icon-btn"
+              *ngIf="cat.user_id"
+              (click)="openEditModal(cat)"
+              title="Editar categoría"
+            >
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path [attr.d]="getIconPath('edit')" />
+              </svg>
+            </button>
+            <button
+              class="icon-btn danger"
+              *ngIf="cat.user_id"
+              (click)="openDeleteModal(cat)"
+              title="Eliminar categoría"
+            >
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path [attr.d]="getIconPath('trash')" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="cat-card__body">
+          <h3 class="cat-card__title">{{ cat.name }}</h3>
+          <div class="cat-card__badges">
+            <span
+              class="badge-type"
+              [class.badge-income]="cat.type === 'income'"
+              [class.badge-expense]="cat.type === 'expense'"
+              [class.badge-both]="cat.type === 'both'"
+            >
+              {{ cat.type === 'income' ? 'Ingreso' : (cat.type === 'expense' ? 'Gasto' : 'Ingreso / Gasto') }}
+            </span>
+            <span class="badge-system" *ngIf="!cat.user_id">Sistema</span>
+            <span class="badge-custom" *ngIf="cat.user_id">Personalizada</span>
+          </div>
+        </div>
+
+        <div class="cat-card__footer">
+          <div class="color-indicator">
+            <span class="color-dot" [style.background]="cat.color || '#3A86EF'"></span>
+            <code>{{ cat.color || '#3A86EF' }}</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state-card" *ngIf="!loading && visibleCategories.length === 0">
+        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path [attr.d]="getIconPath('grid')" />
+        </svg>
+        <h3>No se encontraron categorías</h3>
+        <p>Prueba con otros términos de búsqueda o añade una nueva categoría personalizada.</p>
+        <button class="btn-primary" (click)="openNewModal()">Crear Categoría</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============ MODAL CREAR / EDITAR CATEGORÍA ============ -->
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+  <div class="modal modal--cat" (click)="$event.stopPropagation()">
+    <div class="modal__header">
+      <h3>{{ isEditing ? 'Editar Categoría' : 'Nueva Categoría' }}</h3>
+      <button class="icon-btn" (click)="closeModal()" title="Cerrar">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path [attr.d]="getIconPath('close')" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Previsualización en vivo -->
+    <div class="preview-box">
+      <span class="preview-label">Previsualización de categoría:</span>
+      <div class="preview-card">
+        <div class="preview-icon" [style.background]="form.color">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path [attr.d]="getCategoryIconPath(form.icon)" />
+          </svg>
+        </div>
+        <div class="preview-info">
+          <h4>{{ form.name || 'Nombre de categoría' }}</h4>
+          <span
+            class="badge-type"
+            [class.badge-income]="form.type === 'income'"
+            [class.badge-expense]="form.type === 'expense'"
+            [class.badge-both]="form.type === 'both'"
+          >
+            {{ form.type === 'income' ? 'Ingreso' : (form.type === 'expense' ? 'Gasto' : 'Ambos') }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <form (ngSubmit)="submit()" novalidate>
+      <div class="form-layout">
+        <label class="field field--full">
+          <span>Nombre de la Categoría</span>
+          <input
+            type="text"
+            [(ngModel)]="form.name"
+            name="name"
+            placeholder="Ej: Suscripciones, Gimnasio, Freelance..."
+            maxlength="100"
+            required
+          />
+        </label>
+
+        <label class="field field--full">
+          <span>Aplica para</span>
+          <select [(ngModel)]="form.type" name="type">
+            <option value="expense">Solo Gastos (Egresos)</option>
+            <option value="income">Solo Ingresos</option>
+            <option value="both">Ambos (Ingresos y Gastos)</option>
+          </select>
+        </label>
+
+        <!-- Selector de Color -->
+        <div class="field field--full">
+          <span>Color identificador</span>
+          <div class="color-palette">
+            <button
+              type="button"
+              *ngFor="let col of presetColors"
+              class="color-swatch"
+              [style.background]="col"
+              [class.selected]="form.color === col"
+              (click)="selectColor(col)"
+            >
+              <svg *ngIf="form.color === col" class="swatch-check" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path [attr.d]="getIconPath('check')" />
+              </svg>
+            </button>
+            <input type="color" [(ngModel)]="form.color" name="customColor" class="custom-color-input" title="Color personalizado" />
+          </div>
+        </div>
+
+        <!-- Selector de Ícono -->
+        <div class="field field--full">
+          <span>Icono representativo</span>
+          <div class="icon-selector-grid">
+            <button
+              type="button"
+              *ngFor="let iconItem of availableIcons"
+              class="icon-choice"
+              [class.selected]="form.icon === iconItem.key"
+              (click)="selectIcon(iconItem.key)"
+              [title]="iconItem.label"
+            >
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path [attr.d]="iconItem.path" />
+              </svg>
+              <span class="icon-choice-label">{{ iconItem.key }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p class="form-error" *ngIf="formError">{{ formError }}</p>
+
+      <div class="modal__footer">
+        <button type="button" class="btn-ghost" (click)="closeModal()">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="saving">
+          {{ saving ? 'Guardando…' : (isEditing ? 'Guardar Cambios' : 'Crear Categoría') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ MODAL ELIMINAR CATEGORÍA ============ -->
+<div class="modal-overlay" *ngIf="showDeleteModal" (click)="cancelDelete()">
+  <div class="modal modal--sm" (click)="$event.stopPropagation()">
+    <div class="modal__header">
+      <h3>Eliminar Categoría</h3>
+    </div>
+
+    <p class="delete-text">
+      ¿Estás seguro de que deseas eliminar la categoría
+      <strong>{{ deletingCategory?.name }}</strong>?
+      Los gastos o ingresos existentes asociados mantendrán su registro general.
+    </p>
+
+    <div class="modal__footer">
+      <button type="button" class="btn-ghost" (click)="cancelDelete()">Cancelar</button>
+      <button type="button" class="btn-danger" [disabled]="deleting" (click)="confirmDelete()">
+        {{ deleting ? 'Eliminando…' : 'Eliminar' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" *ngIf="toastMessage" [class.toast--error]="toastType === 'error'">
+  {{ toastMessage }}
+</div>

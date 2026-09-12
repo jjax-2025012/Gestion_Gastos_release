@@ -1,92 +1,20 @@
 <div class="dash" [class.sidebar-collapsed]="sidebarCollapsed">
 
-  <!-- ============ SIDEBAR ============ -->
-  <aside class="sidebar">
-    <div class="sidebar__logo">
-      <img src="assets/logo.png" alt="OSCORP Gestión de Gastos" class="sidebar__logo-img" />
-    </div>
-
-    <nav class="sidebar__menu">
-      <button
-        *ngFor="let item of menuItems"
-        class="sidebar__item"
-        [class.active]="activeRoute === item.route"
-        (click)="setActiveRoute(item.route)"
-        [title]="item.label"
-      >
-        <img class="sidebar__item-icon" [src]="'assets/icon-' + item.route + '.png'" [alt]="item.label" />
-        <span *ngIf="!sidebarCollapsed">{{ item.label }}</span>
-      </button>
-    </nav>
-
-    <button class="sidebar__collapse-btn" (click)="toggleSidebar()">
-      <svg class="icon" [class.flipped]="sidebarCollapsed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M15 6l-6 6 6 6" />
-      </svg>
-      <span *ngIf="!sidebarCollapsed">Cerrar Menú</span>
-    </button>
-  </aside>
+  <app-sidebar></app-sidebar>
 
   <!-- ============ CONTENIDO PRINCIPAL ============ -->
   <main class="main">
 
-    <!-- Header -->
-    <header class="header">
-      <div class="header__welcome">
-        <h1>Bienvenido de vuelta, {{ currentUser?.username || currentUser?.firstName || 'Usuario' }}!</h1>
-        <p>Aquí tienes un resumen de tus finanzas</p>
-      </div>
-
-      <div class="header__search">
-        <input
-          type="text"
-          placeholder="Buscar..."
-          [(ngModel)]="searchTerm"
-          (ngModelChange)="onSearchChange()"
-        />
-        <img class="header__search-icon" src="assets/lupa.png" alt="" />
-      </div>
-
-      <div class="header__actions">
-        <div class="header__date">
-          <img class="header__date-icon" src="assets/calendario.png" alt="" />
-          <span>{{ currentDateLabel }}</span>
-        </div>
-
-        <button class="header__bell" (click)="onBellClick()">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path [attr.d]="getIconPath('bell')" />
-          </svg>
-          <span *ngIf="unreadNotificationCount > 0" class="header__bell-badge">
-            {{ getNotificationBadge() }}
-          </span>
-        </button>
-
-        <div class="header__user" (click)="toggleUserMenu()">
-          <div class="header__avatar">
-            <img
-              [src]="currentUser?.avatar_url || currentUser?.avatar || currentUser?.avatarUrl || currentUser?.picture || defaultAvatar"
-              (error)="onAvatarError($event)"
-              class="user-avatar-img"
-              [alt]="currentUser?.username || 'Usuario'"
-            />
-          </div>
-          <div class="header__user-text">
-            <span class="header__user-name">{{ currentUser?.username || currentUser?.firstName }}</span>
-            <span class="header__user-role">Usuario</span>
-          </div>
-
-          <div class="header__user-menu" *ngIf="userMenuOpen">
-            <button (click)="logout()">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path [attr.d]="getIconPath('log-out')" />
-              </svg>
-              Cerrar sesión
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
+    <app-header
+      [title]="'Bienvenido de vuelta, ' + (currentUser?.username || currentUser?.firstName || 'Usuario') + '!'"
+      subtitle="Aquí tienes un resumen de tus finanzas"
+      searchPlaceholder="Buscar en gastos y categorías..."
+      [searchTerm]="searchTerm"
+      (searchTermChange)="searchTerm = $event; onSearchChange()"
+      (searchSubmit)="onGlobalSearchSubmit($event)"
+      [selectedDate]="selectedDashboardDate"
+      (dateChange)="onDashboardDateChange($event)"
+    ></app-header>
 
     <!-- Tarjetas de resumen -->
     <section class="summary-grid">
@@ -177,8 +105,8 @@
               <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
             </linearGradient>
             <linearGradient id="gastosGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#2563eb" stop-opacity="0.2" />
-              <stop offset="100%" stop-color="#2563eb" stop-opacity="0" />
+              <stop offset="0%" stop-color="#e63946" stop-opacity="0.2" />
+              <stop offset="100%" stop-color="#e63946" stop-opacity="0" />
             </linearGradient>
           </defs>
 
@@ -206,11 +134,33 @@
 
           <!-- líneas -->
           <path [attr.d]="ingresosPath" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-          <path [attr.d]="gastosPath" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path [attr.d]="gastosPath" fill="none" stroke="#e63946" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
 
-          <!-- puntos -->
-          <circle [attr.cx]="ingresosLastPoint.x" [attr.cy]="ingresosLastPoint.y" r="4" fill="#10b981" />
-          <circle [attr.cx]="gastosLastPoint.x" [attr.cy]="gastosLastPoint.y" r="4" fill="#2563eb" />
+          <!-- puntos ingresos -->
+          <circle
+            *ngFor="let pt of ingresosPoints"
+            [attr.cx]="pt.x"
+            [attr.cy]="pt.y"
+            r="4"
+            fill="#10b981"
+            stroke="#0f172a"
+            stroke-width="1.5"
+          >
+            <title>{{ pt.label }}: +{{ formatCurrency(pt.value) }}</title>
+          </circle>
+
+          <!-- puntos gastos -->
+          <circle
+            *ngFor="let pt of gastosPoints"
+            [attr.cx]="pt.x"
+            [attr.cy]="pt.y"
+            r="4"
+            fill="#e63946"
+            stroke="#0f172a"
+            stroke-width="1.5"
+          >
+            <title>{{ pt.label }}: {{ formatCurrency(pt.value) }}</title>
+          </circle>
 
           <!-- etiquetas eje X -->
           <g class="axis-labels-x">
@@ -221,8 +171,8 @@
         </svg>
 
         <div class="line-chart-badges">
-          <span class="badge ingresos">{{ formatCurrency(chartData[chartData.length - 1].ingresos) }}</span>
-          <span class="badge gastos">{{ formatCurrency(chartData[chartData.length - 1].gastos) }}</span>
+          <span class="badge ingresos">{{ formatCurrency(selectedIncomeTotal) }}</span>
+          <span class="badge gastos">{{ formatCurrency(selectedExpenseTotal) }}</span>
         </div>
       </div>
 
@@ -314,27 +264,12 @@
         </table>
       </div>
 
-      <!-- Presupuesto -->
+      <!-- Presupuesto Mensual -->
       <div class="panel">
-        <div class="panel__header">
-          <h2>Presupuesto</h2>
-          <button class="link-btn">Ver todos</button>
-        </div>
-
-        <ul class="budget-list">
-          <li *ngFor="let b of budgets">
-            <div class="budget-list__row">
-              <span class="budget-dot" [style.background]="b.color"></span>
-              <span class="budget-name">{{ b.category }}</span>
-              <span class="budget-values">{{ formatCurrency(b.spent) }} / {{ formatCurrency(b.total) }}</span>
-            </div>
-            <div class="budget-bar">
-              <div class="budget-bar__fill" [style.width.%]="b.percent" [style.background]="b.color"></div>
-            </div>
-            <span class="budget-percent">{{ b.percent }}%</span>
-          </li>
-          <li *ngIf="budgets.length === 0" class="empty-state">Presupuesto: Q0.00 / Q0.00 (0%)</li>
-        </ul>
+        <app-budget-summary
+          [spent]="totalSpentThisMonth"
+          [limit]="monthlyBudgetLimit"
+        ></app-budget-summary>
       </div>
 
       <!-- Notificaciones -->

@@ -5,6 +5,11 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardMetrics, FinanceService, Income, Expense } from '../../core/services/finance.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { SavingsService } from '../../core/services/savings.service';
+import { AppSidebarComponent } from '../../core/components/app-sidebar/app-sidebar.component';
+import { AppHeaderComponent } from '../../core/components/app-header/app-header.component';
+import { CurrencyService } from '../../core/services/currency.service';
+import { AppBudgetSummaryComponent } from '../../core/components/app-budget-summary/app-budget-summary.component';
 
 /* ---------- Modelos ---------- */
 
@@ -98,7 +103,7 @@ const DATASETS: Record<RangeMode, ChartPoint[]> = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppSidebarComponent, AppHeaderComponent, AppBudgetSummaryComponent],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css'],
 })
@@ -106,6 +111,8 @@ export class DashboardComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly financeService = inject(FinanceService);
   private readonly notificationService = inject(NotificationService);
+  private readonly savingsService = inject(SavingsService);
+  private readonly currencyService = inject(CurrencyService);
 
   get currentUser() {
     return this.authService.currentUser();
@@ -122,6 +129,7 @@ export class DashboardComponent implements OnInit {
   isMobile = window.innerWidth < 900;
   userMenuOpen = false;
   searchTerm = '';
+  selectedDashboardDate = '';
   readonly defaultAvatar = 'assets/user-avatar-hombre.png';
 
   get currentDateLabel(): string {
@@ -151,6 +159,8 @@ export class DashboardComponent implements OnInit {
   xAxisLabels: { label: string; x: number }[] = [];
   ingresosLastPoint = { x: 0, y: 0 };
   gastosLastPoint = { x: 0, y: 0 };
+  ingresosPoints: { x: number; y: number; value: number; label: string }[] = [];
+  gastosPoints: { x: number; y: number; value: number; label: string }[] = [];
 
   /* Tarjetas resumen */
   summaryCards: SummaryCard[] = [
@@ -203,6 +213,36 @@ export class DashboardComponent implements OnInit {
   allExpenses: RecentExpense[] = [];
   /* Presupuesto */
   budgets: BudgetItem[] = [];
+  monthlyBudgetLimit = 10000;
+
+  get totalSpentThisMonth(): number {
+    const now = new Date();
+    return this.expenses
+      .filter((expense) => {
+        const date = new Date(expense.expense_date);
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+      })
+      .reduce((sum, expense) => sum + expense.amount, 0);
+  }
+
+  get budgetPercent(): number {
+    if (this.monthlyBudgetLimit <= 0) return 0;
+    return Math.min(100, Math.round((this.totalSpentThisMonth / this.monthlyBudgetLimit) * 100));
+  }
+
+  get budgetStatus(): string {
+    if (this.budgetPercent >= 100) return 'Has alcanzado o superado el presupuesto establecido.';
+    if (this.budgetPercent >= 85) return 'Atención: Estás cerca de alcanzar el límite mensual.';
+    return 'Tu ritmo de gasto está dentro del margen planificado.';
+  }
+
+  get selectedIncomeTotal(): number {
+    return this.chartData.reduce((sum, point) => sum + point.ingresos, 0);
+  }
+
+  get selectedExpenseTotal(): number {
+    return this.chartData.reduce((sum, point) => sum + point.gastos, 0);
+  }
 
   /* Notificaciones */
   notifications: NotificationItem[] = [];
@@ -215,7 +255,7 @@ export class DashboardComponent implements OnInit {
     { label: 'Gastos', icon: 'receipt', route: 'gastos' },
     { label: 'Ingresos', icon: 'trending-up', route: 'ingresos' },
     { label: 'Presupuestos', icon: 'piggy-bank', route: 'presupuestos' },
-    { label: 'Categoría', icon: 'grid', route: 'categoria' },
+    { label: 'Categorías', icon: 'grid', route: 'categorias' },
     { label: 'Reportes', icon: 'file-text', route: 'reportes' },
     { label: 'Ahorro', icon: 'leaf', route: 'ahorro' },
     { label: 'Configuración', icon: 'settings', route: 'configuracion' },
@@ -223,6 +263,11 @@ export class DashboardComponent implements OnInit {
   activeRoute = 'dashboard';
 
   ngOnInit(): void {
+    const savedBudget = localStorage.getItem('jax_monthly_budget');
+    if (savedBudget) {
+      const parsed = Number(savedBudget);
+      if (Number.isFinite(parsed) && parsed > 0) this.monthlyBudgetLimit = parsed;
+    }
     this.loadDashboardData();
     this.loadNotifications();
     this.notificationService.refresh$.subscribe(() => {
@@ -277,20 +322,20 @@ export class DashboardComponent implements OnInit {
   }
 
   private applyMetricChanges(metrics: DashboardMetrics): void {
-    const values = [metrics.balance, metrics.incomes, metrics.expenses, metrics.savings];
-    values.forEach((metric, index) => {
-      this.summaryCards[index].amount = metric.currentMonth;
-      this.summaryCards[index].changePercent = metric.percentage;
-    });
+    this.summaryCards[0].changePercent = metrics.balance.percentage;
+    this.summaryCards[1].changePercent = metrics.incomes.percentage;
+    this.summaryCards[2].changePercent = metrics.expenses.percentage;
+    this.summaryCards[3].changePercent = metrics.savings.percentage;
   }
 
   private refreshDashboard(): void {
     const totalIncome = this.incomes.reduce((sum, income) => sum + income.amount, 0);
     const totalExpense = this.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    this.summaryCards[0].amount = totalIncome - totalExpense;
+    const totalSavings = this.savingsService.totalSavings();
+    this.summaryCards[0].amount = totalIncome - totalExpense - totalSavings;
     this.summaryCards[1].amount = totalIncome;
     this.summaryCards[2].amount = totalExpense;
-    this.summaryCards[3].amount = 0;
+    this.summaryCards[3].amount = totalSavings;
     this.budgets = [];
     this.rawCategories = [];
     const categoryTotals = new Map<string, { amount: number; color: string }>();
@@ -370,7 +415,7 @@ export class DashboardComponent implements OnInit {
   }
 
   formatYAxisValue(value: number): string {
-    return `Q${value}`;
+    return this.currencyService.format(value);
   }
 
   getChangeClass(card: SummaryCard): string {
@@ -419,10 +464,9 @@ export class DashboardComponent implements OnInit {
 
   setActiveRoute(route: string): void {
     this.activeRoute = route;
-    if (route === 'ingresos') {
-      this.router.navigate(['/ingresos']);
-    }
+    this.router.navigate(['/' + route]);
   }
+
 
   setRangeMode(mode: RangeMode): void {
     this.rangeMode = mode;
@@ -434,15 +478,85 @@ export class DashboardComponent implements OnInit {
     this.userMenuOpen = !this.userMenuOpen;
   }
 
+  onDashboardDateChange(date: string): void {
+    this.selectedDashboardDate = date;
+    const mappedExpenses: RecentExpense[] = this.expenses.map((expense) => ({
+      description: expense.description || 'Sin descripción',
+      category: expense.category_name || 'General',
+      date: expense.expense_date || '',
+      method: expense.is_recurring ? 'Automático' : 'Manual',
+      status: 'Completado',
+      amount: expense.amount,
+      icon: 'receipt',
+      iconBg: expense.category_color || '#dbeafe',
+    }));
+
+    if (!date) {
+      this.visibleExpenses = mappedExpenses.slice(0, 6);
+      return;
+    }
+
+    const filtered = mappedExpenses.filter((e) => e.date === date);
+    this.visibleExpenses = filtered.length > 0 ? filtered : mappedExpenses.slice(0, 6);
+  }
+
   onSearchChange(): void {
     const term = this.searchTerm.trim().toLowerCase();
-    this.visibleExpenses = !term
-      ? this.allExpenses
-      : this.allExpenses.filter(
-          (e) =>
-            e.description.toLowerCase().includes(term) ||
-            e.category.toLowerCase().includes(term)
-        );
+    const mappedExpenses: RecentExpense[] = this.expenses.map((expense) => ({
+      description: expense.description || 'Sin descripción',
+      category: expense.category_name || 'General',
+      date: expense.expense_date || '',
+      method: expense.is_recurring ? 'Automático' : 'Manual',
+      status: 'Completado',
+      amount: expense.amount,
+      icon: 'receipt',
+      iconBg: expense.category_color || '#dbeafe',
+    }));
+
+    if (!term) {
+      this.visibleExpenses = mappedExpenses.slice(0, 6);
+    } else {
+      this.visibleExpenses = mappedExpenses.filter(
+        (e) =>
+          (e.description && e.description.toLowerCase().includes(term)) ||
+          (e.category && e.category.toLowerCase().includes(term))
+      );
+    }
+  }
+
+  onGlobalSearchSubmit(term?: string): void {
+    const q = (term ?? this.searchTerm).trim();
+    if (!q) return;
+
+    const lowerQ = q.toLowerCase();
+
+    // Comprobar si coincide con categorías
+    const isCategory =
+      this.categories.some((c) => c.name.toLowerCase().includes(lowerQ)) ||
+      lowerQ.includes('categor') ||
+      lowerQ.includes('servicio') ||
+      lowerQ.includes('comida') ||
+      lowerQ.includes('transporte');
+
+    // Comprobar si coincide con ingresos
+    const isIncome =
+      this.incomes.some(
+        (i) =>
+          (i.description && i.description.toLowerCase().includes(lowerQ)) ||
+          (i.category_name && i.category_name.toLowerCase().includes(lowerQ)) ||
+          (i.notes && i.notes.toLowerCase().includes(lowerQ))
+      ) ||
+      lowerQ.includes('ingreso') ||
+      lowerQ.includes('salario') ||
+      lowerQ.includes('sueldo');
+
+    if (isCategory) {
+      void this.router.navigate(['/categorias'], { queryParams: { search: q } });
+    } else if (isIncome) {
+      void this.router.navigate(['/ingresos'], { queryParams: { search: q } });
+    } else {
+      void this.router.navigate(['/gastos'], { queryParams: { search: q } });
+    }
   }
 
   logout(): void {
@@ -450,13 +564,7 @@ export class DashboardComponent implements OnInit {
   }
 
   formatCurrency(value: number): string {
-    return (
-      'Q' +
-      value.toLocaleString('es-GT', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    );
+    return this.currencyService.format(value);
   }
 
   /* ---------- Construcción de gráficas ---------- */
@@ -546,7 +654,15 @@ export class DashboardComponent implements OnInit {
       y: scaleY(last.gastos),
     };
 
-    this.yAxisTicks = [0, 8000, 16000].map((v) => ({
+    /* All point positions for dot markers */
+    this.ingresosPoints = this.chartData.map((p, i) => ({
+      x: scaleX(i), y: scaleY(p.ingresos), value: p.ingresos, label: p.label,
+    }));
+    this.gastosPoints = this.chartData.map((p, i) => ({
+      x: scaleX(i), y: scaleY(p.gastos), value: p.gastos, label: p.label,
+    }));
+
+    this.yAxisTicks = [0, niceMax / 2, niceMax].map((v) => ({
       value: v,
       y: scaleY(v),
     }));

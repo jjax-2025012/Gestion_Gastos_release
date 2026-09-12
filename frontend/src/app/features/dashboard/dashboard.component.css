@@ -553,7 +553,7 @@
 }
 .legend-dot:first-child { margin-left: 0; }
 .legend-dot.ingresos { background: var(--db-green); }
-.legend-dot.gastos { background: var(--db-blue); margin-left: 4px; }
+.legend-dot.gastos { background: var(--db-red); margin-left: 4px; }
 
 .range-tabs {
   display: flex;
@@ -620,7 +620,7 @@
   color: #fff;
 }
 .badge.ingresos { background: var(--db-green); }
-.badge.gastos { background: var(--db-blue); }
+.badge.gastos { background: var(--db-red); }
 
 /* Dona */
 .donut-content {
@@ -708,6 +708,126 @@
   border-radius: 999px;
   margin-left: 4px;
   text-align: right;
+}
+
+/* Presupuesto mensual compartido visualmente con Gastos. */
+.panel-kicker {
+  margin: 0 0 4px;
+  color: var(--db-text-muted);
+  font-size: 12px;
+}
+
+.budget-amount {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--db-text);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.budget-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.budget-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--db-blue);
+  transition: width 0.25s ease;
+}
+
+.budget-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  color: var(--db-text-muted);
+  font-size: 11px;
+}
+
+.budget-status-box {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.budget-status-box--warning {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+/* Overrides explícitos para que cada texto conserve contraste en modo oscuro. */
+:host-context(body.theme-dark) {
+  --db-bg: #0f172a;
+  --db-surface: #1e293b;
+  --db-border: #334155;
+  --db-text: #f8fafc;
+  --db-text-muted: #cbd5e1;
+  --db-text-soft: #94a3b8;
+}
+
+:host-context(body.theme-dark) .panel__header h2,
+:host-context(body.theme-dark) .summary-card__amount,
+:host-context(body.theme-dark) .summary-card__title,
+:host-context(body.theme-dark) .donut-legend__name,
+:host-context(body.theme-dark) .budget-amount,
+:host-context(body.theme-dark) .expenses-table td {
+  color: #f8fafc;
+}
+
+:host-context(body.theme-dark) .line-chart-legend,
+:host-context(body.theme-dark) .summary-card__vs,
+:host-context(body.theme-dark) .donut-legend__amount,
+:host-context(body.theme-dark) .budget-meta,
+:host-context(body.theme-dark) .panel-kicker,
+:host-context(body.theme-dark) .axis-labels-y text,
+:host-context(body.theme-dark) .axis-labels-x text,
+:host-context(body.theme-dark) .expenses-table th {
+  color: #cbd5e1;
+  fill: #cbd5e1;
+}
+
+:host-context(body.theme-dark) .grid-lines line {
+  stroke: #475569;
+}
+
+:host-context(body.theme-dark) .range-tabs {
+  background: #0f172a;
+}
+
+:host-context(body.theme-dark) .range-tabs button {
+  color: #cbd5e1;
+}
+
+:host-context(body.theme-dark) .summary-card__change.neutral {
+  background: #334155;
+  color: #f8fafc;
+}
+
+:host-context(body.theme-dark) .budget-track {
+  background: #475569;
+}
+
+:host-context(body.theme-dark) .budget-status-box {
+  background: #064e3b;
+  color: #d1fae5;
+}
+
+:host-context(body.theme-dark) .budget-status-box--warning {
+  background: #7c2d12;
+  color: #ffedd5;
+}
+
+:host-context(body.theme-dark) .expenses-table td {
+  border-bottom-color: #334155;
 }
 
 /* ==========================================================================

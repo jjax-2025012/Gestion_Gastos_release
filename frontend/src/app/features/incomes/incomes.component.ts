@@ -1,8 +1,12 @@
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NotificationService } from '../../core/services/notification.service';
+import { AppSidebarComponent } from '../../core/components/app-sidebar/app-sidebar.component';
+import { SavingsService } from '../../core/services/savings.service';
+import { CurrencyService } from '../../core/services/currency.service';
+import { AppHeaderComponent } from '../../core/components/app-header/app-header.component';
 import { AuthService } from '../../core/services/auth.service';
 import {
   FinanceService,
@@ -101,6 +105,7 @@ const SOURCE_PALETTE = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#06B6D4', '
 const ICON_PATHS: Record<string, string> = {
   bell: 'M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3z M10 20a2 2 0 0 0 4 0',
   'log-out': 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
+  close: 'M6 18 18 6 M6 6l12 12',
   'chevron-up': 'M6 15l6-6 6 6',
   'chevron-down': 'M6 9l6 6 6-6',
   transfer: 'M17 2l4 4-4 4 M21 6H9a4 4 0 0 0-4 4 M7 22l-4-4 4-4 M3 18h12a4 4 0 0 0 4-4',
@@ -114,7 +119,7 @@ const ICON_PATHS: Record<string, string> = {
 @Component({
   selector: 'app-incomes',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppSidebarComponent, AppHeaderComponent],
   templateUrl: './incomes.component.html',
   styleUrl: './incomes.component.css',
 })
@@ -122,7 +127,10 @@ export class IncomesComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly financeService = inject(FinanceService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly notificationService = inject(NotificationService);
+  private readonly savingsService = inject(SavingsService);
+  private readonly currencyService = inject(CurrencyService);
 
   get currentUser() {
     return this.authService.currentUser();
@@ -141,13 +149,17 @@ export class IncomesComponent implements OnInit {
   readonly defaultAvatar = 'assets/user-avatar-hombre.png';
   searchTerm: string = '';
   filterCategoryId: string = '';
+  filterDateFrom = '';
+  filterDateTo = '';
+  filterMinAmount: number | null = null;
+  filterMaxAmount: number | null = null;
 
   menuItems = [
     { label: 'Dashboard', icon: 'home', route: 'dashboard' },
     { label: 'Gastos', icon: 'receipt', route: 'gastos' },
     { label: 'Ingresos', icon: 'trending-up', route: 'ingresos' },
     { label: 'Presupuestos', icon: 'piggy-bank', route: 'presupuestos' },
-    { label: 'Categoría', icon: 'grid', route: 'categoria' },
+    { label: 'Categorías', icon: 'grid', route: 'categorias' },
     { label: 'Reportes', icon: 'file-text', route: 'reportes' },
     { label: 'Ahorro', icon: 'leaf', route: 'ahorro' },
     { label: 'Configuración', icon: 'settings', route: 'configuracion' },
@@ -239,6 +251,7 @@ export class IncomesComponent implements OnInit {
   readonly padBottom = 26;
 
   ingresosPath = '';
+  ingresosArea = '';
   yAxisTicks: { value: number; y: number }[] = [];
   xAxisLabels: { label: string; x: number }[] = [];
   incomePointPositions: ChartPointPosition[] = [];
@@ -256,10 +269,23 @@ export class IncomesComponent implements OnInit {
   budgetTotal = 0;
   budgetTarget = 10000;
 
+  get today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   ngOnInit(): void {
     this.loadData();
+    this.notificationService.refresh$.subscribe(() => this.buildSummaryCards());
     this.financeService.getIncomeCategories('income').subscribe({
       next: (categories) => (this.categories = categories),
+    });
+    this.route.queryParams.subscribe((params) => {
+      const search = params['search'] || params['q'] || params['searchTerm'];
+      if (search) {
+        this.searchTerm = search;
+        this.applyFilters();
+        this.scrollToFirstMatch(search);
+      }
     });
   }
 
@@ -303,8 +329,8 @@ export class IncomesComponent implements OnInit {
   private buildSummaryCards(): void {
     const totalIncomes = this.sumOf(this.incomes, (i) => i.amount);
     const totalExpenses = this.sumOf(this.expenses, (e) => e.amount);
-    const balance = totalIncomes - totalExpenses;
-    const savings = 0;
+    const savings = this.savingsService.totalSavings();
+    const balance = totalIncomes - totalExpenses - savings;
 
     this.summaryCards[0].amount = balance;
     this.summaryCards[1].amount = totalIncomes;
@@ -340,56 +366,47 @@ export class IncomesComponent implements OnInit {
   /* ====================== Gráfica de líneas ====================== */
 
   private fillLineChartData(): void {
-    const mode = this.rangeMode;
-    const points = DATASETS[mode].map((p) => ({ ...p }));
+    const now = new Date();
 
-    if (mode === 'Año') {
-      points.forEach((p, idx) => {
-        const month = String(idx + 1).padStart(2, '0');
-        const key = new Date().getFullYear() + '-' + month;
-        p.ingresos = this.sumOf(
-          this.incomes.filter((i) => this.monthKey(i.income_date) === key),
-          (i) => i.amount
-        );
-        p.gastos = this.sumOf(
-          this.expenses.filter((e) => this.monthKey(e.expense_date) === key),
-          (e) => e.amount
-        );
+    if (this.rangeMode === 'Año') {
+      this.chartData = Array.from({ length: 12 }, (_, index) => {
+        const monthKey = `${now.getFullYear()}-${String(index + 1).padStart(2, '0')}`;
+        return {
+          label: new Date(now.getFullYear(), index, 1).toLocaleDateString('es-GT', { month: 'short' }).replace('.', ''),
+          ingresos: this.sumOf(this.incomes.filter((income) => this.monthKey(income.income_date) === monthKey), (income) => income.amount),
+          gastos: 0,
+        };
       });
-    } else if (mode === 'Mes') {
-      const now = new Date();
-      points.forEach((p, idx) => {
-        const start = idx * 7 + 1;
-        const end = idx === points.length - 1 ? 31 : start + 6;
-        p.label = `${start} ${now.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}`;
-        p.ingresos = this.sumByDayRange(this.incomes, 'income_date', start, end);
-        p.gastos = this.sumByDayRange(this.expenses, 'expense_date', start, end);
-      });
-    } else {
-      const now = new Date();
-      points.forEach((p, idx) => {
-        const date = new Date(now);
-        date.setDate(now.getDate() - (6 - idx));
-        p.label = date.toLocaleDateString('es-ES', { weekday: 'short' }).replace('.', '');
-        p.ingresos = this.sumForDate(this.incomes, 'income_date', date);
-        p.gastos = this.sumForDate(this.expenses, 'expense_date', date);
-      });
+      return;
     }
 
-    let cumulativeIncome = 0;
-    points.forEach((point) => {
-      cumulativeIncome += point.ingresos;
-      point.ingresos = cumulativeIncome;
-    });
-    this.chartData = points;
-  }
+    if (this.rangeMode === 'Mes') {
+      const weeks = [
+        { label: 'Sem 1', start: 1, end: 7 },
+        { label: 'Sem 2', start: 8, end: 14 },
+        { label: 'Sem 3', start: 15, end: 21 },
+        { label: 'Sem 4', start: 22, end: 31 },
+      ];
+      this.chartData = weeks.map((week) => ({
+        label: week.label,
+        ingresos: this.sumOf(this.incomes.filter((income) => {
+          const date = new Date(income.income_date);
+          return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() >= week.start && date.getDate() <= week.end;
+        }), (income) => income.amount),
+        gastos: 0,
+      }));
+      return;
+    }
 
-  private sumByDayRange(items: any[], dateField: string, start: number, end: number): number {
-    const now = new Date();
-    return this.sumOf(items.filter((item) => {
-      const date = new Date(item[dateField]);
-      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() >= start && date.getDate() <= end;
-    }), (item) => item.amount);
+    this.chartData = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(now);
+      date.setDate(now.getDate() - (6 - index));
+      return {
+        label: date.toLocaleDateString('es-GT', { weekday: 'short' }).replace('.', ''),
+        ingresos: this.sumForDate(this.incomes, 'income_date', date),
+        gastos: 0,
+      };
+    });
   }
 
   private sumForDate(items: any[], dateField: string, date: Date): number {
@@ -414,12 +431,13 @@ export class IncomesComponent implements OnInit {
     const scaleY = (v: number) => this.padTop + h - (v / niceMax) * h;
     const scaleX = (i: number) => this.padLeft + i * stepX;
 
-    const toPath = (key: 'ingresos') =>
-      this.chartData
-        .map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i).toFixed(1)} ${scaleY(p[key]).toFixed(1)}`)
-        .join(' ');
-
-    this.ingresosPath = toPath('ingresos');
+    const points = this.chartData.map((point, index) => ({
+      x: scaleX(index),
+      y: scaleY(point.ingresos),
+    }));
+    this.ingresosPath = this.buildSmoothPath(points);
+    const baseline = this.padTop + h;
+    this.ingresosArea = `${this.ingresosPath} L ${points[points.length - 1].x.toFixed(1)} ${baseline.toFixed(1)} L ${points[0].x.toFixed(1)} ${baseline.toFixed(1)} Z`;
 
     this.yAxisTicks = [0, niceMax / 2, niceMax].map((v) => ({
       value: v,
@@ -431,6 +449,18 @@ export class IncomesComponent implements OnInit {
       .map((p, i) => ({ label: p.label, x: scaleX(i) }))
       .filter((_, i) => i % labelStep === 0 || i === this.chartData.length - 1);
     this.incomePointPositions = this.chartData.map((point, index) => ({ x: scaleX(index), y: scaleY(point.ingresos), value: point.ingresos, label: point.label }));
+  }
+
+  private buildSmoothPath(points: { x: number; y: number }[]): string {
+    if (points.length === 0) return '';
+    if (points.length === 1) return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+
+    return points.map((point, index) => {
+      if (index === 0) return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+      const previous = points[index - 1];
+      const midpoint = (previous.x + point.x) / 2;
+      return `C ${midpoint.toFixed(1)} ${previous.y.toFixed(1)}, ${midpoint.toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }).join(' ');
   }
 
   private ceilToNice(value: number): number {
@@ -544,9 +574,44 @@ export class IncomesComponent implements OnInit {
     const term = this.searchTerm.trim().toLowerCase();
     this.visibleIncomes = this.incomes.filter((income) => {
       const matchesCategory = !this.filterCategoryId || String(income.category_id) === String(this.filterCategoryId);
+      const incomeDate = (income.income_date || '').slice(0, 10);
+      const matchesDateFrom = !this.filterDateFrom || incomeDate >= this.filterDateFrom;
+      const matchesDateTo = !this.filterDateTo || incomeDate <= this.filterDateTo;
+      const amount = Number(income.amount) || 0;
+      const matchesMinAmount = this.filterMinAmount === null || amount >= this.filterMinAmount;
+      const matchesMaxAmount = this.filterMaxAmount === null || amount <= this.filterMaxAmount;
       const searchable = `${income.description ?? ''} ${income.category_name ?? ''} ${income.notes ?? ''}`.toLowerCase();
-      return matchesCategory && (!term || searchable.includes(term));
+      return matchesCategory && matchesDateFrom && matchesDateTo && matchesMinAmount && matchesMaxAmount && (!term || searchable.includes(term));
     });
+  }
+
+  resetFilters(): void {
+    this.searchTerm = '';
+    this.filterCategoryId = '';
+    this.filterDateFrom = '';
+    this.filterDateTo = '';
+    this.filterMinAmount = null;
+    this.filterMaxAmount = null;
+    this.applyFilters();
+  }
+
+  onSearchTermChange(term: string): void {
+    this.searchTerm = term;
+    this.applyFilters();
+    if (term.trim()) {
+      this.scrollToFirstMatch(term);
+    }
+  }
+
+  scrollToFirstMatch(term?: string): void {
+    setTimeout(() => {
+      const target = document.querySelector('.incomes-table tbody tr:not(.empty-state)');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (target as HTMLElement).classList.add('search-highlight');
+        setTimeout(() => (target as HTMLElement).classList.remove('search-highlight'), 2500);
+      }
+    }, 200);
   }
 
   getCategoryIcon(categoryName: string): string {
@@ -595,9 +660,30 @@ export class IncomesComponent implements OnInit {
     });
   }
 
+  onAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input?.value) {
+      const parts = input.value.split('.');
+      if (parts.length > 1 && parts[1].length > 2) {
+        input.value = `${parts[0]}.${parts[1].slice(0, 2)}`;
+        this.form.amount = parseFloat(input.value);
+      }
+    }
+  }
+
+  onAmountBlur(): void {
+    if (this.form.amount !== null && this.form.amount !== undefined && !isNaN(this.form.amount)) {
+      this.form.amount = Number(Number(this.form.amount).toFixed(2));
+    }
+  }
+
   submit(): void {
     if (!this.form.category_id || !this.form.amount || this.form.amount <= 0 || !this.form.income_date) {
       this.formError = 'Completa la categoría, el monto y la fecha.';
+      return;
+    }
+    if (this.form.income_date > this.today) {
+      this.formError = 'La fecha del ingreso no puede ser futura.';
       return;
     }
     this.saving = true;
@@ -620,6 +706,9 @@ export class IncomesComponent implements OnInit {
         this.applyFilters();
         this.applyData();
         this.loading = false;
+        if (this.searchTerm) {
+          this.scrollToFirstMatch(this.searchTerm);
+        }
       },
       error: () => { this.incomes = []; this.visibleIncomes = []; this.loadingError = 'No se pudieron cargar los ingresos.'; this.loading = false; },
     });
@@ -643,10 +732,7 @@ export class IncomesComponent implements OnInit {
   /* ====================== Utilidades ====================== */
 
   formatCurrency(value: number): string {
-    return 'Q' + Number(value || 0).toLocaleString('es-GT', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+    return this.currencyService.format(value);
   }
 
   formatDate(value: string): string {
@@ -663,16 +749,10 @@ export class IncomesComponent implements OnInit {
   /* ====================== Navegación / Layout ====================== */
 
   navigateTo(item: { label: string; route: string }): void {
-    if (item.route === 'ingresos') {
-      this.activeRoute = item.route;
-      return;
-    }
-    if (item.route === 'dashboard') {
-      this.activeRoute = item.route;
-      this.router.navigate(['/dashboard']);
-      return;
-    }
+    this.activeRoute = item.route;
+    this.router.navigate(['/' + item.route]);
   }
+
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;

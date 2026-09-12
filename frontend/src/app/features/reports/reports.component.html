@@ -1,0 +1,267 @@
+<div class="incomes reports-view" [class.sidebar-collapsed]="sidebarCollapsed">
+
+  <app-sidebar></app-sidebar>
+
+  <!-- ============ CONTENIDO PRINCIPAL ============ -->
+  <main class="main">
+
+    <!-- Header exclusivo de impresión -->
+    <div class="print-header">
+      <div class="print-brand">
+        <img src="assets/logo.png" alt="JAXINDUSTRIES" class="print-logo" />
+        <div>
+          <h2>JAXINDUSTRIES FINANCIAL MANAGEMENT</h2>
+          <p>Reporte Ejecutivo de Ingresos y Gastos</p>
+        </div>
+      </div>
+      <div class="print-meta">
+        <p><strong>Generado el:</strong> {{ currentDateLabel }}</p>
+        <p><strong>Usuario:</strong> {{ currentUser?.username || 'Usuario' }} ({{ currentUser?.email }})</p>
+      </div>
+    </div>
+
+    <app-header
+      title="Reportes y Análisis Financiero"
+      subtitle="Visión consolidada y métricas de rendimiento de tus finanzas"
+    ></app-header>
+
+    <!-- Toolbar de Reporte (Período y Exportación) -->
+    <div class="reports-toolbar no-print">
+      <div class="period-selector">
+        <button
+          class="period-btn"
+          [class.active]="selectedPeriod === 'month'"
+          (click)="setPeriod('month')"
+        >
+          Este Mes
+        </button>
+        <button
+          class="period-btn"
+          [class.active]="selectedPeriod === '3months'"
+          (click)="setPeriod('3months')"
+        >
+          Últimos 3 Meses
+        </button>
+        <button
+          class="period-btn"
+          [class.active]="selectedPeriod === '6months'"
+          (click)="setPeriod('6months')"
+        >
+          Últimos 6 Meses
+        </button>
+        <button
+          class="period-btn"
+          [class.active]="selectedPeriod === 'year'"
+          (click)="setPeriod('year')"
+        >
+          Año Actual
+        </button>
+        <button
+          class="period-btn"
+          [class.active]="selectedPeriod === 'all'"
+          (click)="setPeriod('all')"
+        >
+          Todo el Historial
+        </button>
+      </div>
+
+      <div class="export-actions">
+        <button class="btn-outline" (click)="exportCSV()" title="Descargar datos en CSV">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path [attr.d]="getIconPath('download')" />
+          </svg>
+          Exportar CSV
+        </button>
+        <button class="btn-primary" (click)="printReport()" title="Imprimir o guardar en PDF">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path [attr.d]="getIconPath('printer')" />
+          </svg>
+          Imprimir / PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- KPIs Ejecutivos -->
+    <section class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <span class="summary-card__icon green">
+            <img src="assets/ingresos-resumen.png" alt="Ingresos" />
+          </span>
+          <span class="summary-card__title">Ingresos Totales</span>
+        </div>
+        <div class="summary-card__amount">{{ formatCurrency(totalIncomes) }}</div>
+        <div class="summary-card__comparison">Entradas acumuladas</div>
+        <div class="summary-card__divider green"></div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <span class="summary-card__icon red">
+            <img src="assets/gastos-resumen.png" alt="Gastos" />
+          </span>
+          <span class="summary-card__title">Gastos Totales</span>
+        </div>
+        <div class="summary-card__amount summary-card__amount--red">{{ formatCurrency(totalExpenses) }}</div>
+        <div class="summary-card__comparison">Desembolsos realizados</div>
+        <div class="summary-card__divider red"></div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <span class="summary-card__icon blue">
+            <img src="assets/icon-balance.png" alt="Balance" />
+          </span>
+          <span class="summary-card__title">Ahorro Neto</span>
+        </div>
+        <div class="summary-card__amount" [class.summary-card__amount--red]="netSavings < 0">
+          {{ formatCurrency(netSavings) }}
+        </div>
+        <div class="summary-card__comparison">Margen: {{ savingsRate }}% del ingreso</div>
+        <div class="summary-card__divider blue"></div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <span class="summary-card__icon blue">
+            <img src="assets/icon-ahorro-resumen.png" alt="Mayor Gasto" />
+          </span>
+          <span class="summary-card__title">Mayor Categoría de Gasto</span>
+        </div>
+        <div class="summary-card__amount font-md">{{ topExpenseCategory }}</div>
+        <div class="summary-card__comparison">{{ formatCurrency(topExpenseAmount) }} acumulados</div>
+        <div class="summary-card__divider blue"></div>
+      </div>
+    </section>
+
+    <!-- Gráficas de Análisis -->
+    <div class="reports-grid">
+
+      <!-- Comparativa Mensual de Ingresos vs Gastos (Barras Dobles) -->
+      <div class="panel bar-chart-panel">
+        <div class="panel__header">
+          <div>
+            <h2>Comparativa Mensual: Ingresos vs. Gastos</h2>
+            <p class="panel-subtitle">Barras comparativas de entradas y salidas de capital por mes</p>
+          </div>
+          <div class="chart-indicators">
+            <span><i class="legend-indicator bg-green"></i> Ingresos</span>
+            <span><i class="legend-indicator bg-red"></i> Gastos</span>
+          </div>
+        </div>
+
+        <div class="bar-chart-container">
+          <div class="bar-chart-y-axis">
+            <span>{{ formatCurrency(chartMax) }}</span>
+            <span>{{ formatCurrency(chartMax / 2) }}</span>
+            <span>{{ formatCurrency(0) }}</span>
+          </div>
+
+          <div class="bar-chart-plot">
+            <div class="grid-line" style="top: 0%;"></div>
+            <div class="grid-line" style="top: 50%;"></div>
+            <div class="grid-line" style="bottom: 0%;"></div>
+
+            <div class="bar-columns">
+              <div class="bar-group" *ngFor="let m of monthlyData">
+                <div class="bars-pair">
+                  <!-- Barra Ingreso -->
+                  <div class="bar bar--income" [style.height.px]="m.incomeHeight" [title]="m.label + ' Ingresos: ' + formatCurrency(m.incomes)">
+                    <span class="bar-tooltip" *ngIf="m.incomes > 0">{{ formatCurrency(m.incomes) }}</span>
+                  </div>
+                  <!-- Barra Gasto -->
+                  <div class="bar bar--expense" [style.height.px]="m.expenseHeight" [title]="m.label + ' Gastos: ' + formatCurrency(m.expenses)">
+                    <span class="bar-tooltip" *ngIf="m.expenses > 0">{{ formatCurrency(m.expenses) }}</span>
+                  </div>
+                </div>
+                <span class="bar-label">{{ m.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla resumen del período -->
+        <div class="monthly-table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th class="th-right">Ingresos</th>
+                <th class="th-right">Gastos</th>
+                <th class="th-right">Neto</th>
+                <th class="th-right">% Ahorro</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of monthlyData">
+                <td><strong>{{ row.label }}</strong></td>
+                <td class="th-right text-green">+{{ formatCurrency(row.incomes) }}</td>
+                <td class="th-right text-red">-{{ formatCurrency(row.expenses) }}</td>
+                <td class="th-right" [class.text-red]="row.net < 0" [class.text-green]="row.net >= 0">
+                  {{ formatCurrency(row.net) }}
+                </td>
+                <td class="th-right">
+                  <span class="rate-badge" [class.rate-badge--neg]="row.savingsRate < 0">
+                    {{ row.savingsRate }}%
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Desglose Porcentual por Categoría -->
+      <div class="panel breakdown-panel">
+        <div class="panel__header">
+          <div>
+            <h2>Desglose por Categoría</h2>
+            <p class="panel-subtitle">Distribución porcentual de los egresos</p>
+          </div>
+        </div>
+
+        <!-- Dona -->
+        <div class="donut-center-box">
+          <svg class="donut-chart" viewBox="0 0 200 200">
+            <g transform="rotate(-90 100 100)">
+              <circle
+                *ngFor="let slice of categoryBreakdown"
+                cx="100"
+                cy="100"
+                r="70"
+                fill="none"
+                [attr.stroke]="slice.color"
+                stroke-width="26"
+                [attr.stroke-dasharray]="slice.dashArray"
+                [attr.stroke-dashoffset]="slice.dashOffset"
+              />
+            </g>
+            <text x="100" y="96" text-anchor="middle" class="donut-total-label">Egresos Totales</text>
+            <text x="100" y="116" text-anchor="middle" class="donut-total-amount">{{ formatCurrency(donutTotal) }}</text>
+          </svg>
+        </div>
+
+        <!-- Lista con barra de progreso -->
+        <div class="breakdown-list">
+          <div class="breakdown-item" *ngFor="let cat of categoryBreakdown">
+            <div class="breakdown-item__head">
+              <span class="cat-dot" [style.background]="cat.color"></span>
+              <span class="breakdown-name">{{ cat.name }}</span>
+              <span class="breakdown-amount">{{ formatCurrency(cat.amount) }}</span>
+              <span class="breakdown-percent" [style.color]="cat.color">{{ cat.percent }}%</span>
+            </div>
+            <div class="breakdown-bar">
+              <div class="breakdown-bar__fill" [style.width.%]="cat.percent" [style.background]="cat.color"></div>
+            </div>
+          </div>
+
+          <div class="empty-breakdown" *ngIf="categoryBreakdown.length === 0">
+            No se registran gastos en este período seleccionado.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>

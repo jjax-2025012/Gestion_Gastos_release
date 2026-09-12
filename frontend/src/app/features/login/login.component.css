@@ -341,3 +341,24 @@
   color: #004080;
   text-decoration: underline;
 }
+
+:host-context(body.theme-dark) .login-card {
+  background: #1e293b;
+}
+
+:host-context(body.theme-dark) .header-text h2,
+:host-context(body.theme-dark) .form-group label {
+  color: #f8fafc;
+}
+
+:host-context(body.theme-dark) .subtitle,
+:host-context(body.theme-dark) .auth-footer,
+:host-context(body.theme-dark) .google-divider {
+  color: #cbd5e1;
+}
+
+:host-context(body.theme-dark) .form-group input {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f8fafc;
+}

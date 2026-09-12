@@ -51,10 +51,12 @@ export class LoginComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
-      const sessionExpired = params.get('sessionExpired') === 'true';
+      const sessionExpired = params.get('sessionExpired');
       const unauthorized = params.get('unauthorized') === 'true';
 
-      if (sessionExpired) {
+      if (sessionExpired === 'inactivity') {
+        this.errorMessage = 'Tu sesión ha expirado por inactividad (15 minutos sin interacción). Inicia sesión nuevamente.';
+      } else if (sessionExpired) {
         this.errorMessage = 'Su sesión ha expirado. Por favor, inicia sesión nuevamente.';
       } else if (unauthorized) {
         this.errorMessage = 'Debes iniciar sesión para acceder a esta sección.';

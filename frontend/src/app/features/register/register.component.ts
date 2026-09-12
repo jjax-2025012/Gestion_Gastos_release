@@ -35,7 +35,12 @@ export class RegisterComponent {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.authService.register(this.registerForm.value).subscribe({
+    const registrationPayload = {
+      ...this.registerForm.value,
+      ahorro: 0,
+    };
+
+    this.authService.register(registrationPayload).subscribe({
       next: () => {
         this.router.navigate(['/dashboard']);
       },

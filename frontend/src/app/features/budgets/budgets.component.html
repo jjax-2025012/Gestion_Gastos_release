@@ -1,0 +1,179 @@
+<div class="dash" [class.sidebar-collapsed]="sidebarCollapsed">
+  <app-sidebar></app-sidebar>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+    <app-header
+      title="Gestión de Presupuestos"
+      subtitle="Monitorea tus límites de gastos mensuales y evita sobrecostos"
+    ></app-header>
+
+    <!-- Tarjeta Principal del Widget de Presupuesto con Progress Bar -->
+    <section class="budget-hero-card panel">
+      <div class="budget-hero__top">
+        <div class="budget-hero__title-box">
+          <span class="budget-hero__badge">Límite Establecido</span>
+          <h2>Presupuesto Mensual Activo</h2>
+          <p class="budget-hero__subtitle">
+            Monitoreo en tiempo real del límite establecido para el período corriente
+          </p>
+        </div>
+        <button class="btn-primary" (click)="openEditModal()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path [attr.d]="getIconPath('edit')" />
+          </svg>
+          Ajustar Límite
+        </button>
+      </div>
+
+      <!-- Barra de Progreso Visual Obligatoria -->
+      <div class="budget-hero__metric-row">
+        <div class="budget-hero__amounts">
+          <span class="budget-hero__spent">{{ formatCurrency(totalSpentThisMonth) }}</span>
+          <span class="budget-hero__divider">/</span>
+          <span class="budget-hero__limit">{{ formatCurrency(monthlyBudgetLimit) }}</span>
+          <span class="budget-hero__percent" [ngClass]="progressColorClass">
+            ({{ overallPercent }}%)
+          </span>
+        </div>
+        <span class="budget-hero__status" *ngIf="isOverBudget">
+          ⚠️ ¡Has superado tu presupuesto en {{ formatCurrency(totalSpentThisMonth - monthlyBudgetLimit) }}!
+        </span>
+      </div>
+
+      <!-- Progress Bar Visual Container -->
+      <div class="progress-track">
+        <div
+          class="progress-bar-fill"
+          [ngClass]="progressColorClass"
+          [style.width.%]="overallPercent > 100 ? 100 : overallPercent"
+        ></div>
+      </div>
+
+      <div class="budget-hero__footer">
+        <span>Disponible restante: <strong>{{ formatCurrency(remainingBudget) }}</strong></span>
+        <span>Consumido: <strong>{{ overallPercent }}%</strong> de la cuota mensual</span>
+      </div>
+    </section>
+
+    <!-- Tarjetas de Resumen KPI -->
+    <section class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper blue">
+            <img class="summary-card__image-icon" src="assets/icon-balance.png" alt="" />
+          </div>
+          <span class="summary-card__title">Límite Mensual</span>
+        </div>
+        <div class="summary-card__amount">{{ formatCurrency(monthlyBudgetLimit) }}</div>
+        <div class="summary-card__footer">Establecido en configuración</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper red">
+            <img class="summary-card__image-icon" src="assets/gastos-resumen.png" alt="" />
+          </div>
+          <span class="summary-card__title">Gastos del Mes</span>
+        </div>
+        <div class="summary-card__amount text-red">{{ formatCurrency(totalSpentThisMonth) }}</div>
+        <div class="summary-card__footer">{{ overallPercent }}% del límite consumido</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper green">
+            <img class="summary-card__image-icon" src="assets/icon-ahorro-resumen.png" alt="" />
+          </div>
+          <span class="summary-card__title">Margen Restante</span>
+        </div>
+        <div class="summary-card__amount text-green">{{ formatCurrency(remainingBudget) }}</div>
+        <div class="summary-card__footer">Disponible antes del límite</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__top">
+          <div class="summary-card__icon-wrapper blue-light">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path [attr.d]="getIconPath('piggy-bank')" />
+            </svg>
+          </div>
+          <span class="summary-card__title">Estado Cuota</span>
+        </div>
+        <div class="summary-card__amount" [ngClass]="isOverBudget ? 'text-red' : 'text-green'">
+          {{ isOverBudget ? 'Excedido' : 'Bajo control' }}
+        </div>
+        <div class="summary-card__footer">{{ isOverBudget ? 'Superado' : 'Dentro de lo planificado' }}</div>
+      </div>
+    </section>
+
+    <!-- Desglose por Categorías -->
+    <section class="panel category-budget-panel">
+      <div class="panel__header">
+        <h2>Distribución de Gastos por Categoría vs Presupuesto</h2>
+        <span class="panel__subtitle">Consumo acumulado del mes</span>
+      </div>
+
+      <div class="category-budget-list" *ngIf="categoryBudgets.length > 0">
+        <div class="category-budget-card" *ngFor="let cb of categoryBudgets">
+          <div class="category-budget__header">
+            <div class="category-budget__name-group">
+              <span class="category-dot" [style.background]="cb.color"></span>
+              <span class="category-budget__name">{{ cb.name }}</span>
+            </div>
+            <span class="category-budget__values">
+              <strong>{{ formatCurrency(cb.spent) }}</strong> / {{ formatCurrency(cb.allocated) }} ({{ cb.percent }}%)
+            </span>
+          </div>
+
+          <div class="progress-track sm">
+            <div
+              class="progress-bar-fill"
+              [style.width.%]="cb.percent > 100 ? 100 : cb.percent"
+              [style.background]="cb.color"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="categoryBudgets.length === 0 && !loading">
+        No se registran gastos este mes para desglosar por categoría.
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal para Ajustar Presupuesto -->
+  <div class="modal-backdrop" *ngIf="showEditModal" (click)="showEditModal = false">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h3>Ajustar Límite de Presupuesto Mensual</h3>
+        <button class="btn-icon" (click)="showEditModal = false">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="modal__desc">
+          Define el monto máximo mensual que deseas destinar a tus gastos. Esto actualizará las alertas y barras de progreso en toda la aplicación.
+        </p>
+
+        <div class="form-group">
+          <label>Nuevo Límite Mensual (en {{ currencyService.symbol }})</label>
+          <input
+            type="number"
+            class="input-control"
+            [(ngModel)]="newBudgetLimit"
+            (input)="onBudgetInput($event)"
+            (blur)="onBudgetBlur()"
+            min="1"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button class="btn-secondary" (click)="showEditModal = false">Cancelar</button>
+        <button class="btn-primary" (click)="saveBudgetLimit()">Guardar Límite</button>
+      </div>
+    </div>
+  </div>
+</div>
