@@ -8,6 +8,7 @@ export interface UserRecord {
   google_id?: string;
   firstName?: string;
   lastName?: string;
+  ahorro?: number;
   created_at: Date;
 }
 
@@ -23,6 +24,7 @@ export interface PublicUser {
   avatar?: string;
   avatarUrl?: string;
   google_id?: string;
+  ahorro: number;
 }
 
 export function toPublicUser(user: UserRecord): PublicUser {
@@ -37,5 +39,7 @@ export function toPublicUser(user: UserRecord): PublicUser {
     picture: user.avatar_url,
     avatar: user.avatar_url,
     avatarUrl: user.avatar_url,
+    google_id: user.google_id,
+    ahorro: typeof user.ahorro === 'number' ? user.ahorro : (parseFloat(String(user.ahorro ?? 0)) || 0),
   };
 }

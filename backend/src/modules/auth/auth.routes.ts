@@ -4,6 +4,7 @@ import {
   registerHandler,
   googleLoginHandler,
   getMeHandler,
+  updateProfileHandler,
 } from './auth.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 
@@ -20,3 +21,6 @@ authRouter.post('/google', googleLoginHandler);
 
 // GET /api/auth/me — valida el JWT y devuelve el usuario de la sesión.
 authRouter.get('/me', requireAuth, getMeHandler);
+
+// PUT /api/auth/profile — actualiza el perfil del usuario autenticado.
+authRouter.put('/profile', requireAuth, updateProfileHandler);

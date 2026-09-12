@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as authService from './auth.service';
 import { DatabaseUnavailableError, ValidationError } from '../../utils/errors';
-import { findUserById } from '../users/user.repository';
+import { findUserById, updateUserProfile } from '../users/user.repository';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -120,3 +120,45 @@ export async function getMeHandler(req: Request, res: Response, next: NextFuncti
     next(new DatabaseUnavailableError());
   }
 }
+
+export async function updateProfileHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = (req as any).authUser?.sub;
+    if (!userId) {
+      res.status(401).json({ message: 'Usuario no autenticado.' });
+      return;
+    }
+
+    const { username, gender, avatar_url, avatarUrl } = req.body ?? {};
+    const effectiveAvatar = avatar_url !== undefined ? avatar_url : avatarUrl;
+
+    const updatedUser = await updateUserProfile(userId, {
+      username: username ? String(username).trim() : undefined,
+      gender: gender ? (String(gender).trim() as 'male' | 'female' | 'other') : undefined,
+      avatarUrl: effectiveAvatar !== undefined ? String(effectiveAvatar).trim() : undefined,
+    });
+
+    if (!updatedUser) {
+      res.status(404).json({ message: 'Usuario no encontrado.' });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        gender: updatedUser.gender,
+        picture: updatedUser.avatar_url,
+        avatar_url: updatedUser.avatar_url,
+        avatar: updatedUser.avatar_url,
+        avatarUrl: updatedUser.avatar_url,
+        google_id: updatedUser.google_id,
+      },
+    });
+  } catch (error) {
+    console.error('Error al actualizar el perfil del usuario:', error);
+    next(new DatabaseUnavailableError());
+  }
+}
