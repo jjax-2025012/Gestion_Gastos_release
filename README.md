@@ -1,82 +1,157 @@
-# Sistema Web de Gestión y Control Financiero — Incremento 1: Login
+# JAXINDUSTRIES — Sistema Web de Gestión y Control Financiero
 
-Proyecto académico (5.º Perito en Informática) desarrollado siguiendo el SDLC.
-Este repositorio contiene **únicamente el primer incremento funcional**: un
-**login completo y funcional**, con el frontend y el backend comunicándose
-correctamente y verificando las credenciales contra PostgreSQL.
+Proyecto académico (5.º Perito en Informática) desarrollado siguiendo el
+SDLC. Esta es la **versión final** del sistema: una aplicación web completa
+de finanzas personales, con backend en Node.js/Express/PostgreSQL y
+frontend en Angular, que cubre autenticación, dashboard, ingresos, gastos,
+categorías, notificaciones, presupuestos, ahorro y reportes.
 
-No se implementaron todavía el dashboard ni los módulos financieros
-(ingresos, gastos, activos, pasivos, patrimonio, ahorro, presupuestos,
-espacios financieros, reportes, etc.). Esos se agregarán en incrementos
-posteriores, sobre esta misma base.
+## Módulos del sistema
 
-## ¿Qué incluye este incremento?
+| Módulo | Pantalla (frontend) | Backend / origen de datos |
+|---|---|---|
+| Autenticación | Login, Registro | API real: registro, login, login con Google, JWT, `/api/auth/me`, actualizar perfil |
+| Dashboard | `/dashboard` | API real (`/api/dashboard/metrics`) + datasets de ejemplo para los rangos Semana/Mes/Año de la gráfica comparativa |
+| Ingresos | `/ingresos` | API real (`/api/incomes`), CRUD completo |
+| Gastos | `/gastos` | API real (`/api/expenses`), CRUD completo |
+| Categorías | `/categorias` | API real (`/api/categories`), CRUD completo |
+| Notificaciones | Campana en el header | API real (`/api/notifications`) |
+| Presupuestos | `/presupuestos` | Límite mensual guardado en `localStorage` del navegador (no tiene tabla ni endpoint propio en el backend) |
+| Ahorro | `/ahorro` | Total e historial de movimientos guardados en `localStorage` del navegador (no tiene tabla ni endpoint propio en el backend) |
+| Reportes | `/reportes` | Se calculan en el frontend a partir de los ingresos y gastos reales obtenidos de la API (no hay endpoint `/api/reports`) |
+| Configuración | `/configuracion` | Perfil de usuario vía API real; preferencias (moneda, tema, alertas) en el frontend |
 
-- Backend en **Node.js + TypeScript + Express**, conectado a **PostgreSQL**.
-- Autenticación real: el backend consulta el usuario en la base de datos,
-  compara la contraseña con `bcryptjs` y firma un **JWT (JWS, HS256)**.
-- Frontend en **Angular** (standalone components) con una pantalla de login
-  responsiva, validaciones, estado de carga y mensajes de error específicos.
-- Ninguna credencial está "quemada" en el código: el usuario de prueba se
-  crea con un script que guarda la contraseña ya hasheada en PostgreSQL.
-- Variables de entorno para todo lo sensible (`.env`, nunca subido a Git).
+> **Nota para el siguiente incremento:** Presupuestos, Ahorro y Reportes ya
+> están completamente maquetados y funcionales del lado del cliente, pero
+> sus datos no persisten en PostgreSQL ni se sincronizan entre
+> dispositivos/navegadores. Para completarlos a nivel de base de datos
+> haría falta agregar tablas `budgets` y `savings_movements`, sus
+> repositorios/controladores/rutas en `backend/src/modules/`, y reemplazar
+> las llamadas a `localStorage` en `budgets.component.ts` y
+> `savings.service.ts` por `HttpClient`.
 
 ## Tecnologías
 
-| Capa                | Tecnología                          |
-|---------------------|--------------------------------------|
-| Frontend             | Angular (standalone components)     |
-| Backend              | Node.js + TypeScript + Express      |
-| Base de datos        | PostgreSQL                          |
-| Administración BD    | pgAdmin 4                           |
-| Autenticación        | JWT firmado con JWS (HS256)         |
-| Hash de contraseñas  | bcryptjs                            |
-| Control de versiones | Git + GitHub                        |
-| Gestión del proyecto | Trello                              |
+| Capa | Tecnología |
+|---|---|
+| Frontend | Angular 17 (standalone components), TypeScript, CSS puro |
+| Gráficas | SVG generado dinámicamente en los componentes (sin Chart.js/Recharts/ECharts) |
+| Backend | Node.js + TypeScript + Express |
+| Base de datos | PostgreSQL |
+| Administración BD | pgAdmin 4 |
+| Autenticación | JWT firmado con JWS (HS256), hash de contraseñas con bcryptjs |
+| Login social | Google OAuth 2.0 (`google-auth-library`) |
+| Gestor de paquetes | pnpm (backend y frontend) |
+| Control de versiones | Git + GitHub |
+| Gestión del proyecto | Trello |
 
 ## Requisitos previos
 
-- Node.js 18 o superior y npm.
+- Node.js 18 o superior y pnpm.
 - PostgreSQL 14 o superior (y pgAdmin 4, opcional pero recomendado).
 - Git.
+- Credenciales OAuth 2.0 de Google (Client ID y Client Secret) si se quiere
+  usar el inicio de sesión con Google.
 
-## 1. Clonar y ubicar las carpetas
-
-El proyecto está dividido en dos carpetas independientes:
+## Estructura del proyecto
 
 ```
-login-financiero/
-├── backend/     → API en Node.js + TypeScript
-└── frontend/    → Aplicación Angular
+Gestion_Gastos/
+├── backend/
+│   ├── src/
+│   │   ├── config/env.ts              # Carga y valida variables de entorno
+│   │   ├── db/
+│   │   │   ├── pool.ts                # Conexión a PostgreSQL
+│   │   │   └── schema.sql             # Tablas: users, categories, incomes, expenses, notifications
+│   │   ├── middleware/
+│   │   │   ├── auth.middleware.ts     # requireAuth (valida el JWT)
+│   │   │   └── errorHandler.ts
+│   │   ├── modules/
+│   │   │   ├── auth/                  # Registro, login, login con Google, perfil
+│   │   │   ├── users/                 # Modelo y repositorio de usuarios
+│   │   │   ├── categories/            # CRUD de categorías
+│   │   │   ├── incomes/               # CRUD de ingresos
+│   │   │   ├── expenses/              # CRUD de gastos
+│   │   │   ├── notifications/         # Notificaciones del usuario
+│   │   │   └── dashboard/             # Métricas agregadas para el panel principal
+│   │   ├── utils/                     # JWT, hash de contraseñas, errores propios
+│   │   ├── app.ts                     # Configuración de Express y montaje de rutas
+│   │   └── server.ts                  # Punto de entrada
+│   ├── scripts/create-test-user.ts    # Script de desarrollo para crear un usuario de prueba
+│   ├── .env.example
+│   └── package.json
+└── frontend/
+    └── src/
+        ├── app/
+        │   ├── core/
+        │   │   ├── guards/auth.guard.ts
+        │   │   ├── interceptors/auth.interceptor.ts   # Adjunta el JWT a cada petición
+        │   │   ├── models/auth.models.ts
+        │   │   └── services/
+        │   │       ├── auth.service.ts
+        │   │       ├── finance.service.ts     # Ingresos, gastos, categorías, dashboard (HTTP real)
+        │   │       ├── savings.service.ts     # Ahorro (localStorage)
+        │   │       ├── notification.service.ts
+        │   │       ├── currency.service.ts
+        │   │       ├── theme.service.ts
+        │   │       └── inactivity.service.ts
+        │   ├── features/
+        │   │   ├── login/
+        │   │   ├── register/
+        │   │   ├── dashboard/
+        │   │   ├── incomes/
+        │   │   ├── expenses/
+        │   │   ├── categories/
+        │   │   ├── budgets/            # Presupuesto mensual (localStorage)
+        │   │   ├── savings/            # Ahorro
+        │   │   ├── reports/            # Reportes calculados en el cliente
+        │   │   └── settings/           # Perfil y preferencias
+        │   ├── app.component.ts
+        │   └── app.routes.ts
+        ├── assets/                    # Íconos y logos de la marca JAXINDUSTRIES
+        ├── environments/
+        └── styles.css
 ```
 
-## 2. Configurar PostgreSQL
+Documentos adicionales incluidos en la raíz del proyecto:
+`Maquetado_Ingresos.pdf`, `Maquetado_Gastos.pdf`, `Maquetado_Categorias.pdf`,
+`Maquetado_Presupuestos.pdf`, `Maquetado_Ahorro.pdf`,
+`Maquetado_Reportes.pdf` y `Maquetado_Configuracion.pdf`: manuales de
+maquetado de cada módulo con la marca JAXINDUSTRIES.
 
-1. Crea la base de datos (puedes usar pgAdmin 4 o la terminal):
+## 1. Configurar PostgreSQL
+
+1. Crea la base de datos:
 
    ```sql
    CREATE DATABASE sistema_financiero;
    ```
 
-2. Ejecuta el script que crea la tabla de usuarios:
+2. Ejecuta el script que crea las tablas (`users`, `categories`, `incomes`,
+   `expenses`, `notifications`) y siembra las categorías iniciales:
 
    ```bash
    psql -U <tu_usuario> -d sistema_financiero -f backend/src/db/schema.sql
    ```
 
-   (En pgAdmin 4 también puedes abrir ese archivo y ejecutarlo desde el
-   "Query Tool" apuntando a la base `sistema_financiero`).
+   (También puedes abrir el archivo desde el "Query Tool" de pgAdmin 4
+   apuntando a la base `sistema_financiero`).
 
-## 3. Configurar el backend
+3. (Opcional) Para tener datos de ejemplo en el dashboard, usa
+   `backend/src/db/insert-demo-data.sql` reemplazando `'TU_USER_ID'` por el
+   `id` del usuario que crearás en el siguiente paso.
+
+## 2. Configurar el backend
 
 ```bash
 cd backend
 pnpm install
-cp .env.example .env
+
+// crea el .env y copia lo del .env.example tal y como esta, replaza las seccion de PostgreSQL por tus datos relaes 
 ```
 
-Abre `.env` y completa tus datos reales de PostgreSQL y un secreto propio
-para firmar los JWT (una cadena larga y aleatoria):
+Abre `.env` y completa tus propios valores (nunca reutilices los del
+ejemplo en un entorno real):
 
 ```
 PORT=3000
@@ -89,21 +164,28 @@ DB_USER=postgres
 DB_PASSWORD=tu_contraseña_real
 
 JWT_SECRET=una_cadena_larga_y_aleatoria
-JWT_EXPIRES_IN=1h
+JWT_EXPIRES_IN=8h
+
+GOOGLE_CLIENT_ID=tu_client_id_de_google
+GOOGLE_CLIENT_SECRET=tu_client_secret_de_google
 ```
+
+> **Seguridad:** el `backend/.env.example` del proyecto trae un
+> `JWT_SECRET` y credenciales de Google ya rellenadas a modo de ejemplo.
+> Antes de subir el repositorio a un lugar público o de desplegarlo,
+> reemplázalas por valores propios y confirma que el archivo real `.env`
+> esté en `.gitignore`.
 
 ### Crear un usuario de prueba
 
-Con el `.env` ya configurado y la tabla `users` creada:
+Con el `.env` configurado y las tablas ya creadas:
 
 ```bash
-                              --------gmail----------  ----Rol----------- --contraseña-- 
-pnpm run db:create-test-user jjax-2025012@gmail.com "Usuario de Prueba" 0123
+pnpm run db:create-test-user correo@ejemplo.com "Usuario de Prueba" contraseña
 ```
 
-Esto guarda en PostgreSQL un usuario con la contraseña **ya hasheada**
-(nunca en texto plano). Puedes usar otro correo/usuario/contraseña si
-prefieres; si no pasas argumentos, usa esos valores por defecto.
+Esto guarda en PostgreSQL un usuario con la contraseña ya hasheada (nunca
+en texto plano). Si no pasas argumentos, usa valores por defecto.
 
 ### Iniciar el backend
 
@@ -121,7 +203,22 @@ Servidor backend escuchando en http://localhost:3000
 Puedes probar que el servidor responde visitando
 `http://localhost:3000/api/health` (debe devolver `{"status":"ok"}`).
 
-## 4. Configurar y ejecutar el frontend
+### Endpoints disponibles
+
+| Recurso | Rutas |
+|---|---|
+| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/google`, `GET /api/auth/me`, `PUT /api/auth/profile` |
+| Gastos | `GET/POST /api/expenses`, `PUT/DELETE /api/expenses/:id` |
+| Ingresos | `GET/POST /api/incomes`, `PUT/DELETE /api/incomes/:id` |
+| Categorías | `GET/POST /api/categories`, `PUT/DELETE /api/categories/:id` |
+| Notificaciones | `GET/POST /api/notifications`, `PATCH /api/notifications/read-all`, `DELETE /api/notifications/:id` |
+| Dashboard | `GET /api/dashboard/metrics` |
+
+Todas las rutas anteriores, salvo `register`, `login` y `google`, requieren
+el header `Authorization: Bearer <token>` (lo agrega automáticamente el
+`auth.interceptor.ts` del frontend una vez que el usuario inicia sesión).
+
+## 3. Configurar y ejecutar el frontend
 
 En otra terminal:
 
@@ -131,125 +228,64 @@ pnpm install
 pnpm start
 ```
 
-Esto levanta Angular en `http://localhost:4200`. Al abrirlo verás
-directamente la pantalla de login.
+Esto levanta Angular en `http://localhost:4200`.
 
 La URL del backend que usa el frontend está en
 `frontend/src/environments/environment.development.ts`
 (`apiUrl: "http://localhost:3000/api"`). Si cambias el puerto del backend,
 actualiza este archivo.
 
-## 5. Probar el login
+Si se quiere usar el inicio de sesión con Google, el `GOOGLE_CLIENT_ID`
+también debe configurarse en el frontend (mismo valor que en el `.env` del
+backend).
+
+## 4. Recorrido de la aplicación
 
 1. Con PostgreSQL, el backend (`pnpm run dev`) y el frontend (`pnpm start`)
-   corriendo, abre `http://localhost:4200`.
-2. Ingresa el correo y la contraseña del usuario de prueba que creaste.
-3. Si son correctos, verás un panel de "Inicio de sesión exitoso" con tu
-   nombre de usuario y correo.
-4. Prueba también los casos de error:
-   - Contraseña incorrecta → mensaje de credenciales incorrectas.
-   - Correo que no existe → mismo mensaje (por seguridad, no se distingue
-     cuál de los dos campos falló).
-   - Campos vacíos → validación en el propio formulario, sin llamar al backend.
-   - Backend apagado → mensaje de que no se pudo conectar con el servidor.
-   - PostgreSQL apagado (con el backend encendido) → mensaje de que no se
-     pudo conectar con la base de datos.
+   corriendo, abre `http://localhost:4200`. Se te redirige a `/login`.
+2. Puedes **registrarte** desde `/register`, iniciar sesión con
+   correo/contraseña, o usar **"Iniciar sesión con Google"**.
+3. Tras autenticarte llegas al **Dashboard**, con tarjetas de resumen
+   (Balance, Ingresos, Gastos, Ahorro), gráfica de líneas Ingresos vs
+   Gastos (pestañas Semana/Mes/Año), gráfica de dona por categoría, tabla
+   de gastos recientes y campana de notificaciones.
+4. Desde el sidebar puedes navegar a **Ingresos**, **Gastos** y
+   **Categorías** (CRUD completo contra la API), **Presupuestos** y
+   **Ahorro** (persistidos en el navegador) y **Reportes** (calculados a
+   partir de tus ingresos/gastos reales, con exportación a CSV/impresión).
+5. En **Configuración** puedes editar tu perfil (nombre, correo, avatar,
+   estado de sincronización con Google) y tus preferencias del sistema
+   (moneda, presupuesto límite, tema claro/oscuro, alertas).
+6. Casos de error a probar en el login: contraseña incorrecta, correo
+   inexistente (mismo mensaje genérico por seguridad), campos vacíos
+   (validación en el propio formulario), backend apagado y PostgreSQL
+   apagado.
 
-## Estructura del proyecto
+## Características destacadas del dashboard
 
-```
-login-financiero/
-├── backend/
-│   ├── src/
-│   │   ├── config/env.ts            # Carga y valida variables de entorno
-│   │   ├── db/
-│   │   │   ├── pool.ts              # Conexión a PostgreSQL
-│   │   │   └── schema.sql           # Tabla "users" (solo lo necesario para login)
-│   │   ├── modules/
-│   │   │   ├── auth/                # Rutas, controlador y servicio de login
-│   │   │   └── users/                # Modelo y repositorio de usuarios
-│   │   ├── middleware/errorHandler.ts
-│   │   ├── utils/                   # JWT, hash de contraseñas, errores propios
-│   │   ├── app.ts                   # Configuración de Express
-│   │   └── server.ts                # Punto de entrada
-│   ├── scripts/create-test-user.ts  # Script de desarrollo (no se usa en producción)
-│   ├── .env.example
-│   └── package.json
-└── frontend/
-    └── src/
-        ├── app/
-        │   ├── core/
-        │   │   ├── models/auth.models.ts
-        │   │   └── services/auth.service.ts
-        │   ├── features/login/      # Pantalla de login (única pantalla de este incremento)
-        │   ├── app.component.ts
-        │   └── app.routes.ts
-        ├── environments/
-        └── styles.css                # Variables de color (paleta pendiente, ver abajo)
-```
-
-Esta separación por módulos (`modules/auth`, `modules/users` en el backend;
-`core/`, `features/` en el frontend) permite agregar más adelante
-`modules/incomes`, `modules/expenses`, `modules/assets`, etc., y
-`features/dashboard`, `features/budgets`, etc., sin reorganizar lo ya
-construido.
-
-
-
-## Qué NO se desarrolló todavía
-
-Este incremento se detiene exactamente en el login funcional. Quedan
-pendientes para incrementos posteriores: ingresos, gastos,
-gastos variables/recurrentes, activos, pasivos, patrimonio, ahorro, fondo
-de emergencia, presupuestos, categorías, historial financiero, reportes,
-espacios financieros, registro de usuarios, recuperación de
-contraseña y despliegue en producción.
-
----
-
-## Incremento 2: Dashboard financiero (frontend)
-
-Se agregó la pantalla `frontend/src/app/features/dashboard/` con el
-panel principal, replicando el diseño de referencia (sidebar, tarjetas de
-resumen, gráfica de líneas Ingresos vs Gastos, gráfica de dona por
-categoría, tabla de gastos recientes, presupuesto y notificaciones).
-
-**Importante:** por ahora todos los datos del dashboard (montos, gastos
-recientes, presupuestos, notificaciones) son **datos de ejemplo (mock)**
-definidos directamente en `dashboard.component.ts`, ya que el backend de
-este repositorio solo implementa autenticación. Cuando se agreguen los
-módulos de `ingresos`, `gastos`, `presupuestos`, etc. al backend, basta con
-reemplazar esos arreglos mock por llamadas HTTP (`HttpClient`) a los nuevos
-endpoints — la estructura de las interfaces (`SummaryCard`, `ChartPoint`,
-`CategorySlice`, `RecentExpense`, `BudgetItem`, `NotificationItem`) ya está
-pensada para mapear 1 a 1 con la futura respuesta de la API.
-
-### Características del dashboard
-
-- **100% Angular + TypeScript + CSS puro** (sin librerías externas de
-  gráficas): las gráficas de líneas, la dona y los sparklines de las
-  tarjetas están hechas con SVG generado dinámicamente en el componente,
-  por lo que no requieren instalar Chart.js/ECharts/Recharts ni depender
-  de conexión a internet para renderizarse.
-- **Sidebar** con menú de navegación (Dashboard, Gastos, Ingresos,
-  Presupuestos, Categoría, Reportes, Ahorro, Configuración), resaltado del
-  ítem activo y botón "Cerrar Menú" que colapsa la barra a solo íconos.
-- **Header** con saludo, buscador (filtra en vivo la tabla de "Gastos
-  Recientes" por descripción o categoría), selector de fecha, campana de
-  notificaciones y menú de usuario con opción de "Cerrar sesión" (usa el
-  `AuthService` ya existente).
-- **Tarjetas de resumen** (Balance total, Ingresos, Gastos, Ahorro) con
-  variación porcentual y mini gráfica de tendencia.
-- **Gráfica "Gastos vs Ingresos"** con pestañas funcionales Semana / Mes /
-  Año, cada una con su propio set de datos.
-- **Gráfica de dona "Categoría de Gastos"** con leyenda, montos y
-  porcentajes calculados a partir de los datos (siempre suman 100%).
+- **100% Angular + TypeScript + CSS puro**: las gráficas de líneas, la
+  dona y los sparklines de las tarjetas están hechas con SVG generado
+  dinámicamente en el componente, sin librerías externas de gráficas ni
+  dependencia de internet para renderizarse.
+- **Sidebar** con menú de navegación completo (Dashboard, Gastos,
+  Ingresos, Presupuestos, Categorías, Reportes, Ahorro, Configuración),
+  resaltado del ítem activo y botón para colapsar la barra a solo íconos.
+- **Header** con saludo, buscador en vivo sobre "Gastos Recientes",
+  selector de fecha, campana de notificaciones (conectada a la API) y menú
+  de usuario con cierre de sesión.
 - **Totalmente responsivo**: de escritorio (4 columnas) a tablet (2
   columnas) y móvil (1 columna), con el sidebar colapsándose
   automáticamente en pantallas angostas.
 
-### Cómo verlo
+## Qué queda pendiente para un siguiente incremento
 
-Con el backend y PostgreSQL corriendo (o simplemente comentando
-temporalmente el `authGuard` en `app.routes.ts` si solo quieres ver el
-diseño sin loguearte), inicia sesión y serás redirigido a `/dashboard`.
+- Persistir **presupuestos** y **movimientos de ahorro** en PostgreSQL
+  (tablas + módulo backend + reemplazo de `localStorage` en el frontend).
+- Endpoint dedicado de **reportes** en el backend (hoy se calculan en el
+  cliente a partir de `/api/expenses` e `/api/incomes`).
+- Recuperación de contraseña.
+- Despliegue en producción (hoy el proyecto está pensado para correr en
+  `localhost`).
+- Rotar y externalizar correctamente el `JWT_SECRET` y las credenciales de
+  Google del `.env.example` antes de cualquier entorno compartido o
+  público.
