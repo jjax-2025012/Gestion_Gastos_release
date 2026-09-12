@@ -27,6 +27,9 @@ export async function checkDatabaseConnection(): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("SELECT 1");
+    await client.query(
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS ahorro NUMERIC(12, 2) NOT NULL DEFAULT 0.00;"
+    );
   } finally {
     client.release();
   }
