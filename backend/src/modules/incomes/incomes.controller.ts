@@ -41,6 +41,11 @@ function parseAmount(value: unknown): number {
   if (typeof value !== 'number' && !(typeof value === 'string' && value.trim() !== '')) {
     throw new ValidationError('El monto es obligatorio.');
   }
+  const strVal = String(value).trim();
+  const decimalPart = strVal.split('.')[1];
+  if (decimalPart && decimalPart.length > 2) {
+    throw new ValidationError('El monto no puede tener más de 2 decimales.');
+  }
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new ValidationError('El monto debe ser un número mayor que 0.');
