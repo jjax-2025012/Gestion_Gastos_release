@@ -1,31 +1,248 @@
 import { Request, Response, NextFunction } from 'express';
-import { getExpensesByUserId } from './expenses.repository';
-import { DatabaseUnavailableError } from '../../utils/errors';
+import {
+  getExpensesByUserId,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+} from './expenses.repository';
+import { AppError, DatabaseUnavailableError, UnauthorizedError, ValidationError } from '../../utils/errors';
 import { AuthTokenPayload } from '../../utils/jwt';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_DESCRIPTION_LENGTH = 255;
+
+export interface ExpenseInput {
+  categoryId: string;
+  description: string;
+  amount: number;
+  expenseDate: string;
+  isRecurring: boolean;
+  notes: string | null;
+}
+
+function getAuthenticatedUserId(req: Request): string {
+  const userId = (req as Request & { authUser?: AuthTokenPayload }).authUser?.sub;
+  if (!userId) {
+    throw new UnauthorizedError('Usuario no autenticado.');
+  }
+  return userId;
+}
+
+function todayISO(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function parseAmount(value: unknown): number {
+  if (typeof value !== 'number' && !(typeof value === 'string' && value.trim() !== '')) {
+    throw new ValidationError('El monto es obligatorio.');
+  }
+  const strVal = String(value).trim();
+  const decimalPart = strVal.split('.')[1];
+  if (decimalPart && decimalPart.length > 2) {
+    throw new ValidationError('El monto no puede tener más de 2 decimales.');
+  }
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ValidationError('El monto debe ser un número mayor que 0.');
+  }
+  return Math.round(amount * 100) / 100;
+}
+
+function validateCategoryId(value: unknown): string {
+  if (typeof value !== 'string' || !UUID_REGEX.test(value)) {
+    throw new ValidationError('La categoría es obligatoria.');
+  }
+  return value;
+}
+
+function validateDescription(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new ValidationError('La descripción es obligatoria.');
+  }
+  if (value.trim().length > MAX_DESCRIPTION_LENGTH) {
+    throw new ValidationError(`La descripción no puede superar los ${MAX_DESCRIPTION_LENGTH} caracteres.`);
+  }
+  return value.trim();
+}
+
+function validateExpenseDate(value: unknown): string {
+  if (typeof value !== 'string' || !DATE_REGEX.test(value)) {
+    throw new ValidationError('La fecha no tiene un formato válido (AAAA-MM-DD).');
+  }
+  return value;
+}
+
+function validateNotes(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    throw new ValidationError('Las notas deben ser texto.');
+  }
+  return value;
+}
+
+export function validateCreateExpenseBody(body: unknown): ExpenseInput {
+  if (typeof body !== 'object' || body === null) {
+    throw new ValidationError('Solicitud inválida.');
+  }
+  const { category_id, description, amount, expense_date, is_recurring, notes } = body as Record<string, unknown>;
+
+  const expenseDate = expense_date === undefined || expense_date === ''
+    ? todayISO()
+    : validateExpenseDate(expense_date);
+
+  return {
+    categoryId: validateCategoryId(category_id),
+    description: validateDescription(description),
+    amount: parseAmount(amount),
+    expenseDate,
+    isRecurring: is_recurring === true,
+    notes: validateNotes(notes),
+  };
+}
+
+export function validateUpdateExpenseBody(body: unknown): Partial<ExpenseInput> {
+  if (typeof body !== 'object' || body === null) {
+    throw new ValidationError('Solicitud inválida.');
+  }
+  const { category_id, description, amount, expense_date, is_recurring, notes } = body as Record<string, unknown>;
+
+  const updates: Partial<ExpenseInput> = {};
+
+  if (category_id !== undefined) {
+    updates.categoryId = validateCategoryId(category_id);
+  }
+  if (description !== undefined) {
+    updates.description = validateDescription(description);
+  }
+  if (amount !== undefined) {
+    updates.amount = parseAmount(amount);
+  }
+  if (expense_date !== undefined) {
+    updates.expenseDate = validateExpenseDate(expense_date);
+  }
+  if (is_recurring !== undefined) {
+    updates.isRecurring = is_recurring === true;
+  }
+  if (notes !== undefined) {
+    updates.notes = validateNotes(notes);
+  }
+
+  return updates;
+}
+
+function forwardError(error: unknown, next: NextFunction): void {
+  if (error instanceof AppError) {
+    next(error);
+  } else {
+    next(new DatabaseUnavailableError());
+  }
+}
+
 /**
- * Obtiene todos los gastos del usuario autenticado.
- * El userId viene del middleware requireAuth (req.authUser.id).
+ * GET /api/expenses — obtiene todos los gastos del usuario autenticado.
  */
 export async function getExpensesHandler(
-  req: Request & { authUser?: AuthTokenPayload },
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    const userId = req.authUser?.sub;
-    if (!userId) {
-      res.status(401).json({ error: 'Usuario no autenticado.' });
-      return;
-    }
-
+    const userId = getAuthenticatedUserId(req);
     const expenses = await getExpensesByUserId(userId);
     res.status(200).json({ data: expenses });
   } catch (error) {
-    if (error instanceof DatabaseUnavailableError) {
-      next(error);
-    } else {
-      next(new DatabaseUnavailableError());
+    forwardError(error, next);
+  }
+}
+
+/**
+ * POST /api/expenses — crea un nuevo gasto.
+ */
+export async function createExpenseHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = getAuthenticatedUserId(req);
+    const data = validateCreateExpenseBody(req.body);
+    const notesBody = data.notes ?? undefined;
+
+    const expense = await createExpense(
+      userId,
+      data.categoryId,
+      data.description,
+      data.amount,
+      data.expenseDate,
+      data.isRecurring,
+      notesBody
+    );
+
+    res.status(201).json({ success: true, data: expense });
+  } catch (error) {
+    forwardError(error, next);
+  }
+}
+
+/**
+ * PUT /api/expenses/:id — actualiza un gasto existente.
+ */
+export async function updateExpenseHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = getAuthenticatedUserId(req);
+    const expenseId = req.params.id;
+    if (!UUID_REGEX.test(expenseId)) {
+      throw new ValidationError('Identificador de gasto inválido.');
     }
+
+    const updates = validateUpdateExpenseBody(req.body);
+    const expense = await updateExpense(expenseId, userId, updates);
+
+    if (!expense) {
+      res.status(404).json({ message: 'Gasto no encontrado.' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: expense });
+  } catch (error) {
+    forwardError(error, next);
+  }
+}
+
+/**
+ * DELETE /api/expenses/:id — elimina un gasto.
+ */
+export async function deleteExpenseHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = getAuthenticatedUserId(req);
+    const expenseId = req.params.id;
+    if (!UUID_REGEX.test(expenseId)) {
+      throw new ValidationError('Identificador de gasto inválido.');
+    }
+
+    const deleted = await deleteExpense(expenseId, userId);
+
+    if (!deleted) {
+      res.status(404).json({ message: 'Gasto no encontrado.' });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: 'Gasto eliminado correctamente' });
+  } catch (error) {
+    forwardError(error, next);
   }
 }

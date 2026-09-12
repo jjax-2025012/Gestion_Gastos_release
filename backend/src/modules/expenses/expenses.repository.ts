@@ -111,7 +111,7 @@ export async function updateExpense(
     amount: number;
     expenseDate: string;
     isRecurring: boolean;
-    notes: string;
+    notes: string | null;
   }>
 ): Promise<ExpenseRecord | null> {
   const fields: string[] = [];
