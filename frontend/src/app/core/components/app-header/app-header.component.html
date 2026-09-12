@@ -1,0 +1,64 @@
+<header class="header">
+  <div class="header__welcome">
+    <h1>{{ title }}</h1>
+    <p>{{ subtitle }}</p>
+  </div>
+
+  <div class="header__search" *ngIf="searchPlaceholder" (click)="searchInput.focus()">
+    <input
+      #searchInput
+      type="text"
+      [placeholder]="searchPlaceholder"
+      [ngModel]="searchTerm"
+      (ngModelChange)="onSearchTermChange($event)"
+      (keydown.enter)="onSearchEnter()"
+    />
+    <img class="header__search-icon" src="assets/lupa.png" alt="" (click)="onSearchEnter()" style="cursor: pointer;" />
+  </div>
+
+  <div class="header__actions">
+    <div class="header__date" (click)="openDatePicker(datePickerInput)" title="Seleccionar fecha">
+      <img class="header__date-icon" src="assets/calendario.png" alt="" />
+      <span>{{ displayDateLabel }}</span>
+      <input
+        #datePickerInput
+        type="date"
+        class="header__date-picker"
+        [value]="selectedDate"
+        (change)="onDateChange($event)"
+        (click)="$event.stopPropagation()"
+      />
+    </div>
+
+    <button class="header__bell" type="button" (click)="onBellClick()" title="Notificaciones">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3z M10 20a2 2 0 0 0 4 0" />
+      </svg>
+      <span *ngIf="unreadCount > 0" class="header__bell-badge">{{ unreadCount > 99 ? '+99' : unreadCount }}</span>
+    </button>
+
+    <div class="header__user" (click)="toggleUserMenu()">
+      <div class="header__avatar">
+        <img
+          [src]="currentUser?.avatar_url || currentUser?.avatar || currentUser?.avatarUrl || currentUser?.picture || defaultAvatar"
+          (error)="onAvatarError($event)"
+          class="user-avatar-img"
+          [alt]="currentUser?.username || 'Usuario'"
+        />
+      </div>
+      <div class="header__user-text">
+        <span class="header__user-name">{{ currentUser?.username || currentUser?.firstName || 'Usuario' }}</span>
+        <span class="header__user-role">Usuario</span>
+      </div>
+
+      <div class="header__user-menu" *ngIf="userMenuOpen">
+        <button type="button" (click)="logout()">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9" />
+          </svg>
+          Cerrar sesión
+        </button>
+      </div>
+    </div>
+  </div>
+</header>

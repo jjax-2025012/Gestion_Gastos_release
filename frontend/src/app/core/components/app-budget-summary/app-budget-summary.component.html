@@ -1,0 +1,17 @@
+<div class="budget-summary">
+  <div class="budget-summary__heading">
+    <h2>{{ title }}</h2>
+  </div>
+  <p class="budget-summary__kicker">Gasto total acumulado</p>
+  <strong class="budget-summary__amount">{{ formatCurrency(spent) }}</strong>
+  <div class="budget-summary__track">
+    <span [style.width.%]="percent"></span>
+  </div>
+  <div class="budget-summary__meta">
+    <span>{{ percent }}% consumido</span>
+    <span>Límite {{ formatCurrency(limit) }}</span>
+  </div>
+  <div class="budget-summary__status" [class.budget-summary__status--warning]="percent >= 85">
+    {{ status }}
+  </div>
+</div>

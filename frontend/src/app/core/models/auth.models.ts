@@ -10,6 +10,8 @@ export interface User {
   avatar_url?: string;
   avatar?: string;
   avatarUrl?: string;
+  ahorro?: number;
+  savings?: number;
 }
 
 export interface LoginResponse {
@@ -22,4 +24,5 @@ export interface RegisterRequest {
   email: string;
   password: string;
   gender: 'male' | 'female' | 'other';
+  ahorro?: number;
 }

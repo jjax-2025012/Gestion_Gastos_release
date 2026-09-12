@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, Subscription, timer, tap } from 'rxjs';
 import { LoginResponse, RegisterRequest, User } from '../models/auth.models';
 import { environment } from '../../../environments/environment';
+import { SavingsService } from './savings.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,6 +15,7 @@ export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
   private ngZone = inject(NgZone);
+  private savingsService = inject(SavingsService);
 
   public currentUser = signal<User | null>(this.getUserFromStorage());
   public sessionExpiredMessage: string | null = null;
@@ -31,8 +33,14 @@ export class AuthService {
   }
 
   login(credentials: { email: string; password: string }): Observable<LoginResponse> {
+    // Clear state/localStorage/sessionStorage on user switch
+    this.clearSession();
     return this.http.post<LoginResponse>(`${this.API_URL}/login`, credentials).pipe(
-      tap(res => this.setSession(res))
+      tap(res => {
+        const initialAhorro = typeof res.user.ahorro === 'number' ? res.user.ahorro : 0;
+        this.savingsService.initializeSavings(initialAhorro, []);
+        this.setSession(res);
+      })
     );
   }
 
@@ -41,24 +49,74 @@ export class AuthService {
    * El backend valida la firma y crea la cuenta automáticamente si no existía.
    */
   googleLogin(idToken: string): Observable<LoginResponse> {
+    // Clear state/localStorage/sessionStorage on user switch
+    this.clearSession();
     return this.http.post<LoginResponse>(`${this.API_URL}/google`, { idToken }).pipe(
-      tap(res => this.setSession(res))
+      tap(res => {
+        const initialAhorro = typeof res.user.ahorro === 'number' ? res.user.ahorro : 0;
+        this.savingsService.initializeSavings(initialAhorro, []);
+        this.setSession(res);
+      })
     );
   }
 
   register(data: RegisterRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.API_URL}/register`, data).pipe(
-      tap(res => this.setSession(res))
+    // Explicitly set ahorro = 0 when registering local accounts
+    const payload: RegisterRequest = {
+      ...data,
+      ahorro: 0,
+    };
+    // Clear state/localStorage/sessionStorage before creating new local account
+    this.clearSession();
+    this.savingsService.resetSavings();
+
+    return this.http.post<LoginResponse>(`${this.API_URL}/register`, payload).pipe(
+      tap(res => {
+        // Enforce ahorro = 0 on client state and storage
+        res.user.ahorro = 0;
+        this.savingsService.initializeSavings(0, []);
+        this.setSession(res);
+      })
     );
   }
 
+  updateProfile(data: { username?: string; gender?: string; avatar_url?: string }): Observable<{ success: boolean; user: User }> {
+    return this.http.put<{ success: boolean; user: User }>(`${this.API_URL}/profile`, data).pipe(
+      tap((res) => {
+        if (res.user) {
+          const current = this.currentUser();
+          const updatedUser: User = {
+            ...(current as User),
+            ...res.user,
+            avatar: res.user.avatar_url || res.user.avatar || current?.avatar,
+            picture: res.user.avatar_url || res.user.picture || current?.picture,
+            avatar_url: res.user.avatar_url || current?.avatar_url,
+            ahorro: typeof res.user.ahorro === 'number' ? res.user.ahorro : current?.ahorro ?? 0,
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          this.currentUser.set(updatedUser);
+        }
+      })
+    );
+  }
+
+  /**
+   * Clear state/localStorage/sessionStorage on logout or user switch.
+   */
   clearSession(): void {
     if (this.timerSubscription) {
       this.timerSubscription.unsubscribe();
+      this.timerSubscription = undefined;
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
     this.currentUser.set(null);
+    this.savingsService.resetSavings();
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.clear();
+    }
   }
 
   logout(): void {
@@ -67,7 +125,7 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
   }
 
   handleSessionExpiration(): void {
@@ -93,14 +151,25 @@ export class AuthService {
   private setSession(authResult: LoginResponse): void {
     const tokenPayload = this.decodeTokenPayload(authResult.token);
     const avatar = authResult.user.picture || authResult.user.avatar_url || authResult.user.avatar || authResult.user.avatarUrl || tokenPayload['picture'] || tokenPayload['avatar_url'];
-    const user = { ...authResult.user, avatar, picture: authResult.user.picture || avatar, avatar_url: authResult.user.avatar_url || avatar, avatarUrl: authResult.user.avatarUrl || avatar };
-    localStorage.setItem('token', authResult.token);
-    localStorage.setItem('user', JSON.stringify(user));
+    const ahorro = typeof authResult.user.ahorro === 'number' ? authResult.user.ahorro : 0;
+    const user: User = {
+      ...authResult.user,
+      avatar,
+      picture: authResult.user.picture || avatar,
+      avatar_url: authResult.user.avatar_url || avatar,
+      avatarUrl: authResult.user.avatarUrl || avatar,
+      ahorro,
+    };
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('token', authResult.token);
+      localStorage.setItem('user', JSON.stringify(user));
+    }
     this.currentUser.set(user);
     this.scheduleExpirationTimer();
   }
 
   private getUserFromStorage(): User | null {
+    if (typeof localStorage === 'undefined') return null;
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   }

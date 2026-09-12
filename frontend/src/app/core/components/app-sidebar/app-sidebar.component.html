@@ -1,0 +1,35 @@
+<aside class="sidebar" [class.sidebar--collapsed]="collapsed">
+  <div class="sidebar__logo">
+    <img src="assets/logo.png" alt="OSCORP Gestión de Gastos" class="sidebar__logo-img" />
+  </div>
+
+  <nav class="sidebar__menu" aria-label="Navegación principal">
+    <button
+      *ngFor="let item of menuItems"
+      type="button"
+      class="sidebar__item"
+      [class.active]="isActive(item.route)"
+      [title]="item.label"
+      (click)="navigateTo(item.route)"
+    >
+      <img
+        class="sidebar__item-icon"
+        [src]="'assets/icon-' + item.icon + '.png'"
+        [alt]="item.label"
+      />
+      <span *ngIf="!collapsed">{{ item.label }}</span>
+    </button>
+  </nav>
+
+  <button
+    type="button"
+    class="sidebar__collapse-btn"
+    [attr.aria-label]="collapsed ? 'Abrir menú' : 'Cerrar menú'"
+    (click)="toggle()"
+  >
+    <svg class="icon" [class.flipped]="collapsed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M15 6l-6 6 6 6" />
+    </svg>
+    <span *ngIf="!collapsed">Cerrar Menú</span>
+  </button>
+</aside>

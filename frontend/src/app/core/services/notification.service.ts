@@ -16,6 +16,10 @@ interface NotificationsResponse {
   data: NotificationItem[];
 }
 
+interface CreateNotificationResponse {
+  success: boolean;
+}
+
 interface MarkAllAsReadResponse {
   success: boolean;
   updated: number;
@@ -38,6 +42,14 @@ export class NotificationService {
       map((response) => response.data),
       tap((items) => this.unreadCount.set(items.filter((item) => item.is_read === false).length))
     );
+  }
+
+  createNotification(
+    message: string,
+    type: NotificationItem['type'] = 'info',
+    icon = 'info'
+  ): Observable<CreateNotificationResponse> {
+    return this.http.post<CreateNotificationResponse>(this.url, { message, type, icon });
   }
 
   markAllAsRead(): Observable<MarkAllAsReadResponse> {

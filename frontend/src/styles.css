@@ -138,3 +138,242 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
   z-index: 100;
 }
+
+body.theme-light {
+  background: #f4efeb;
+  color: #111827;
+}
+
+body.theme-dark {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+body.theme-dark .incomes,
+body.theme-dark .dash {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+body.theme-dark .panel,
+body.theme-dark .summary-card,
+body.theme-dark .table-panel,
+body.theme-dark .budget-panel,
+body.theme-dark .settings-panel {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.theme-dark input,
+body.theme-dark select,
+body.theme-dark textarea {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+/* Contraste de contenido por tema. El sidebar conserva su paleta corporativa. */
+body.theme-light .main,
+body.theme-light .main-content,
+body.theme-light .panel,
+body.theme-light .summary-card,
+body.theme-light .settings-panel {
+  color: #0f172a;
+}
+
+body.theme-light .panel h1,
+body.theme-light .panel h2,
+body.theme-light .panel h3,
+body.theme-light .summary-card__title,
+body.theme-light .summary-card__amount,
+body.theme-light .donut-legend__name,
+body.theme-light .inc-desc__text,
+body.theme-light .expense-desc,
+body.theme-light .cat-card__title,
+body.theme-light .reports-grid h2,
+body.theme-light .settings-panel h2 {
+  color: #0f172a;
+}
+
+body.theme-light .header__welcome h1,
+body.theme-light .header__welcome p,
+body.theme-light .header__date,
+body.theme-light .panel-subtitle,
+body.theme-light .filter-item label,
+body.theme-light .field > span,
+body.theme-light .toggle-info span,
+body.theme-light .theme-card span,
+body.theme-light .donut-legend__amount,
+body.theme-light .line-chart-legend,
+body.theme-light .chart-legend,
+body.theme-light .reports-toolbar,
+body.theme-light .table-panel__count {
+  color: #1e293b;
+}
+
+body.theme-dark .main,
+body.theme-dark .main-content,
+body.theme-dark .panel,
+body.theme-dark .summary-card,
+body.theme-dark .settings-panel,
+body.theme-dark .table-panel,
+body.theme-dark .budget-panel {
+  color: #f8fafc;
+}
+
+body.theme-dark .header__welcome h1,
+body.theme-dark .header__welcome p,
+body.theme-dark .panel h1,
+body.theme-dark .panel h2,
+body.theme-dark .panel h3,
+body.theme-dark .summary-card__title,
+body.theme-dark .summary-card__amount,
+body.theme-dark .donut-legend__name,
+body.theme-dark .inc-desc__text,
+body.theme-dark .expense-desc,
+body.theme-dark .cat-card__title,
+body.theme-dark .reports-grid h2,
+body.theme-dark .settings-panel h2,
+body.theme-dark .incomes-table td,
+body.theme-dark .expenses-table td,
+body.theme-dark .field > span,
+body.theme-dark .toggle-info strong,
+body.theme-dark .theme-card span {
+  color: #ffffff;
+}
+
+body.theme-dark .panel-subtitle,
+body.theme-dark .filter-item label,
+body.theme-dark .toggle-info span,
+body.theme-dark .donut-legend__amount,
+body.theme-dark .line-chart-legend,
+body.theme-dark .chart-legend,
+body.theme-dark .reports-toolbar,
+body.theme-dark .table-panel__count,
+body.theme-dark .incomes-table th,
+body.theme-dark .expenses-table th {
+  color: #cbd5e1;
+}
+
+body.theme-dark .filter-bar,
+body.theme-dark .theme-card,
+body.theme-dark .select-wrap select,
+body.theme-dark .filter-item input,
+body.theme-dark .filter-item select,
+body.theme-dark .btn-filter-reset {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+body.theme-dark .incomes-table td,
+body.theme-dark .expenses-table td {
+  border-bottom-color: #334155;
+}
+
+body.theme-dark .theme-card.selected {
+  background: #1e3a8a;
+  border-color: #60a5fa;
+}
+
+body.theme-dark .panel h1,
+body.theme-dark .panel h2,
+body.theme-dark .panel h3,
+body.theme-dark .panel h4,
+body.theme-dark .panel p,
+body.theme-dark .panel span,
+body.theme-dark .panel strong,
+body.theme-dark .panel label,
+body.theme-dark .panel td,
+body.theme-dark .panel th,
+body.theme-dark .panel li,
+body.theme-dark .summary-card__title,
+body.theme-dark .summary-card__amount,
+body.theme-dark .summary-card__comparison,
+body.theme-dark .summary-card__footer,
+body.theme-dark .panel-subtitle,
+body.theme-dark .donut-legend__name,
+body.theme-dark .donut-legend__amount,
+body.theme-dark .donut-total-label,
+body.theme-dark .donut-total-amount,
+body.theme-dark .chart-legend,
+body.theme-dark .line-chart-legend,
+body.theme-dark .breakdown-name,
+body.theme-dark .breakdown-amount,
+body.theme-dark .bar-label,
+body.theme-dark .bar-chart-y-axis,
+body.theme-dark .field > span,
+body.theme-dark .toggle-info strong,
+body.theme-dark .toggle-info span,
+body.theme-dark .theme-card span,
+body.theme-dark .history-desc,
+body.theme-dark .history-date {
+  color: #ffffff !important;
+}
+
+body.theme-dark .panel .panel-subtitle,
+body.theme-dark .panel .table-panel__count,
+body.theme-dark .panel .filter-item label,
+body.theme-dark .panel .donut-legend__percent,
+body.theme-dark .panel .breakdown-percent,
+body.theme-dark .panel .rate-badge {
+  color: #ffffff !important;
+}
+
+body.theme-dark .search-icon,
+body.theme-dark .header__search-icon {
+  filter: brightness(0) invert(1);
+}
+
+body.theme-dark .donut-total-label,
+body.theme-dark .donut-total-amount {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+}
+
+body.theme-dark .donut-legend__name,
+body.theme-dark .donut-legend__amount,
+body.theme-dark .donut-legend__empty,
+body.theme-dark .breakdown-name,
+body.theme-dark .breakdown-amount,
+body.theme-dark .donut-total-label,
+body.theme-dark .donut-total-amount {
+  color: #ffffff !important;
+}
+
+/* Animación y resaltado de búsqueda */
+.search-highlight {
+  outline: 2px solid #2563eb !important;
+  background-color: rgba(37, 99, 235, 0.12) !important;
+  transition: background-color 0.5s ease, outline 0.5s ease;
+}
+
+@page {
+  margin: 0;
+  size: A4 portrait;
+}
+
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .reports-view,
+  .reports-container,
+  .print-wrapper,
+  .incomes,
+  .reports-page {
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 210mm !important;
+    padding: 10mm 15mm !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+  }
+}
